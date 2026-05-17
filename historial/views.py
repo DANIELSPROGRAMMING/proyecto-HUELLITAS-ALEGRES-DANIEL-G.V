@@ -5,6 +5,7 @@ from django.core.exceptions import PermissionDenied
 from django.core.paginator import Paginator, EmptyPage, PageNotAnInteger
 from django.db import transaction
 from django.db.models import Q
+from django.http import FileResponse, Http404
 
 from usuarios.decorators import role_required
 from .models import HistorialClinico, Adjunto
@@ -260,3 +261,36 @@ def eliminar_adjunto(request, pk):
     return render(request, 'historial/adjunto_confirm_delete.html', {
         'adjunto': adjunto,
     })
+
+
+@login_required(login_url='/usuarios/login/')
+def descargar_adjunto(request, pk):
+    """Download an attachment file from a HistorialClinico record.
+
+    Veterinario who created the historial, Administrador, or the pet's owner
+    (Cliente) can download attachments. Domiciliario cannot.
+    """
+    adjunto = get_object_or_404(Adjunto, pk=pk)
+    historial = adjunto.historial_clinico
+
+    # Permission check
+    if request.user.rol.nombre == 'Veterinario' and historial.veterinario != request.user:
+        raise PermissionDenied
+    if request.user.rol.nombre == 'Cliente' and historial.mascota.propietario != request.user:
+        raise PermissionDenied
+    if request.user.rol.nombre not in ('Veterinario', 'Administrador', 'Cliente'):
+        raise PermissionDenied
+    # Administrador can download any
+
+    if not adjunto.archivo:
+        raise Http404('El archivo no existe.')
+
+    try:
+        response = FileResponse(
+            adjunto.archivo.open('rb'),
+            as_attachment=True,
+            filename=adjunto.archivo.name.split('/')[-1],
+        )
+        return response
+    except Exception:
+        raise Http404('El archivo no se pudo encontrar en el servidor.')

@@ -198,7 +198,15 @@
                             {% endif %}
                         </td>
                         <td class="px-4 py-3">
-                            <a href="{{ adjunto.archivo.url }}" target="_blank" class="text-primary hover:underline">{{ adjunto.archivo.name|cut:"adjuntos/" }}</a>
+                            <div class="flex items-center gap-2">
+                                <a href="{{ adjunto.archivo.url }}" target="_blank" class="text-primary hover:underline flex items-center gap-1">
+                                    <span class="material-symbols-outlined text-[16px]">visibility</span>
+                                    {{ adjunto.archivo.name|cut:"adjuntos/" }}
+                                </a>
+                                <a href="{% url 'historial:descargar_adjunto' adjunto.pk %}" class="inline-flex items-center gap-1 bg-primary-container/30 text-primary font-caption text-caption px-2 py-0.5 rounded-lg hover:bg-primary-container transition-colors" title="Descargar archivo">
+                                    <span class="material-symbols-outlined text-[14px]">download</span> Descargar
+                                </a>
+                            </div>
                         </td>
                         <td class="px-4 py-3">{{ adjunto.descripcion|default:"—" }}</td>
                         <td class="px-4 py-3">{{ adjunto.subido_por.email|default:"—" }}</td>
