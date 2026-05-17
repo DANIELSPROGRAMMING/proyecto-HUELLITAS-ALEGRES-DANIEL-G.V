@@ -240,7 +240,10 @@ def solicitar_cita(request):
             cita = form.save(commit=False)
             cita.estado = 'Programada'
             cita.save()
-            messages.success(request, f'¡Cita solicitada exitosamente para {cita.mascota.nombre}!')
+            # HU#5: Send confirmation email
+            from usuarios.email_utils import send_cita_confirmation
+            send_cita_confirmation(cita, request.user.email)
+            messages.success(request, f'¡Cita solicitada exitosamente para {cita.mascota.nombre}! Se ha enviado una confirmación a su correo.')
             return redirect('agenda:lista_citas')
     else:
         # Pre-populate vet filter if present in query string

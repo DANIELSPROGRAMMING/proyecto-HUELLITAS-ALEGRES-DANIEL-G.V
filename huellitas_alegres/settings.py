@@ -119,6 +119,16 @@ USE_I18N = True
 USE_TZ = True
 
 
+# Email configuration
+# In production, configure a real SMTP backend (Gmail, SendGrid, etc.)
+# For development and demonstration, emails are printed to the console.
+# When a real SMTP server is configured, change to 'django.core.mail.backends.smtp.EmailBackend'
+EMAIL_BACKEND = 'django.core.mail.backends.console.EmailBackend'
+EMAIL_HOST = 'localhost'
+EMAIL_PORT = 587
+EMAIL_USE_TLS = True
+DEFAULT_FROM_EMAIL = 'Huellitas Alegres <no-reply@huellitasalegres.com>'
+
 # Static files (CSS, JavaScript, Images)
 # https://docs.djangoproject.com/en/5.2/howto/static-files/
 

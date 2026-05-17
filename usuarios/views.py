@@ -329,13 +329,20 @@ def login_view(request):
     return render(request, 'usuarios/login.html')
 
 def register_view(request):
-    """Vista para procesar el registro de usuarios usando RegistroForm."""
+    """Vista para procesar el registro de usuarios usando RegistroForm.
+
+    HU#1: After successful registration, sends a confirmation email
+    (via console.EmailBackend in development).
+    """
     if request.method == 'POST':
         from .forms import RegistroForm
         form = RegistroForm(request.POST)
         if form.is_valid():
-            form.save()
-            messages.success(request, '¡Registro exitoso! Ya puedes iniciar sesión')
+            user = form.save()
+            # HU#1: Send confirmation email
+            from .email_utils import send_registration_confirmation
+            send_registration_confirmation(user)
+            messages.success(request, '¡Registro exitoso! Ya puedes iniciar sesión.')
             return redirect('usuarios:login')
         # El formulario tiene errores — renderizar página de login con contexto del formulario
         return render(request, 'usuarios/login.html', {'register_form': form})

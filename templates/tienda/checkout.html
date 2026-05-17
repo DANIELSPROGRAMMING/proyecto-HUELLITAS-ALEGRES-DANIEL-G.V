@@ -22,8 +22,16 @@
 <div class="max-w-6xl mx-auto">
     {# Page Header #}
     <h1 class="font-headline-lg text-headline-lg text-on-surface flex items-center gap-3 mb-6">
-        <span class="material-symbols-outlined text-primary">check_circle</span> Confirmar Pedido
+        <span class="material-symbols-outlined text-primary">shopping_bag</span> Confirmar Pedido
     </h1>
+
+    {# Payment method notice #}
+    <div class="flex items-start gap-3 p-4 mb-4 bg-secondary-container/30 rounded-xl border border-secondary/20 font-body-md text-body-md text-on-surface">
+        <span class="material-symbols-outlined text-secondary flex-shrink-0 mt-0.5">info</span>
+        <div>
+            <p><strong>Modelo de pago: Contra entrega.</strong> El pago se realiza en efectivo o transferencia al momento de recibir el pedido. No se requiere tarjeta ni pago anticipado.</p>
+        </div>
+    </div>
 
     {% if items %}
     {# Two-column layout #}
