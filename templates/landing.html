@@ -117,7 +117,6 @@
         </a>
         <div class="hidden md:flex gap-md items-center">
             <a class="font-label-md text-label-md text-on-surface-variant hover:text-primary transition-colors" href="#servicios">Servicios</a>
-            <a class="font-label-md text-label-md text-on-surface-variant hover:text-primary transition-colors" href="#precios">Precios</a>
             <a class="font-label-md text-label-md text-on-surface-variant hover:text-primary transition-colors" href="#nosotros">Nosotros</a>
         </div>
     </div>
@@ -205,102 +204,6 @@
                 <p class="font-body-md text-body-md text-on-primary/90 max-w-[400px]">Nuestro equipo está disponible para atender emergencias con la rapidez y precisión necesarias.</p>
                 <a href="{% url 'agenda:lista_citas' %}" class="mt-sm font-label-md text-label-md text-primary bg-on-primary hover:bg-surface transition-colors rounded-lg px-lg py-sm inline-block text-center">
                     Contactar Ahora
-                </a>
-            </div>
-        </div>
-    </section>
-
-    <!-- Precios Section -->
-    <section class="pt-lg pb-lg" id="precios">
-        <div class="mb-lg text-center">
-            <h2 class="font-headline-lg text-headline-lg text-on-surface mb-sm">Planes y Precios</h2>
-            <p class="font-body-md text-body-md text-on-surface-variant max-w-[600px] mx-auto">Transparencia total. Conoce nuestros planes diseñados para cada necesidad.</p>
-        </div>
-        <div class="grid grid-cols-1 md:grid-cols-3 gap-gutter">
-            <!-- Plan Básico -->
-            <div class="bg-surface-container-lowest rounded-xl p-md custom-shadow-level-1 border border-outline-variant/10 flex flex-col">
-                <div class="mb-sm">
-                    <span class="font-label-md text-label-md text-on-surface-variant uppercase tracking-wider">Básico</span>
-                </div>
-                <h3 class="font-headline-lg text-headline-lg text-on-surface mb-xs">$25.000</h3>
-                <p class="font-caption text-caption text-secondary mb-md">Por consulta</p>
-                <ul class="flex flex-col gap-xs flex-1">
-                    <li class="flex items-center gap-xs font-body-md text-body-md text-on-surface">
-                        <span class="material-symbols-outlined text-primary text-[18px]" style="font-variation-settings: 'FILL' 1;">check_circle</span>
-                        Consulta general
-                    </li>
-                    <li class="flex items-center gap-xs font-body-md text-body-md text-on-surface">
-                        <span class="material-symbols-outlined text-primary text-[18px]" style="font-variation-settings: 'FILL' 1;">check_circle</span>
-                        Vacunación básica
-                    </li>
-                    <li class="flex items-center gap-xs font-body-md text-body-md text-on-surface">
-                        <span class="material-symbols-outlined text-primary text-[18px]" style="font-variation-settings: 'FILL' 1;">check_circle</span>
-                        Desparasitación
-                    </li>
-                </ul>
-                <a href="{% url 'agenda:lista_citas' %}" class="mt-md w-full font-label-md text-label-md text-primary bg-secondary-container hover:bg-surface-container-high transition-colors rounded-lg px-md py-sm inline-block text-center">
-                    Agendar Cita
-                </a>
-            </div>
-            <!-- Plan Integral (destacado) -->
-            <div class="bg-primary rounded-xl p-md custom-shadow-level-1 border-2 border-primary flex flex-col relative">
-                <div class="absolute -top-3 left-1/2 -translate-x-1/2 bg-on-primary text-primary font-label-md text-label-md px-md py-xs rounded-full">
-                    Más Popular
-                </div>
-                <div class="mb-sm mt-sm">
-                    <span class="font-label-md text-label-md text-on-primary/80 uppercase tracking-wider">Integral</span>
-                </div>
-                <h3 class="font-headline-lg text-headline-lg text-on-primary mb-xs">$55.000</h3>
-                <p class="font-caption text-caption text-on-primary/80 mb-md">Por consulta</p>
-                <ul class="flex flex-col gap-xs flex-1">
-                    <li class="flex items-center gap-xs font-body-md text-body-md text-on-primary">
-                        <span class="material-symbols-outlined text-on-primary text-[18px]" style="font-variation-settings: 'FILL' 1;">check_circle</span>
-                        Todo del Plan Básico
-                    </li>
-                    <li class="flex items-center gap-xs font-body-md text-body-md text-on-primary">
-                        <span class="material-symbols-outlined text-on-primary text-[18px]" style="font-variation-settings: 'FILL' 1;">check_circle</span>
-                        Exámenes de laboratorio
-                    </li>
-                    <li class="flex items-center gap-xs font-body-md text-body-md text-on-primary">
-                        <span class="material-symbols-outlined text-on-primary text-[18px]" style="font-variation-settings: 'FILL' 1;">check_circle</span>
-                        Radiografías
-                    </li>
-                    <li class="flex items-center gap-xs font-body-md text-body-md text-on-primary">
-                        <span class="material-symbols-outlined text-on-primary text-[18px]" style="font-variation-settings: 'FILL' 1;">check_circle</span>
-                        Seguimiento post-consulta
-                    </li>
-                </ul>
-                <a href="{% url 'agenda:lista_citas' %}" class="mt-md w-full font-label-md text-label-md text-primary bg-on-primary hover:bg-surface transition-colors rounded-lg px-md py-sm inline-block text-center">
-                    Agendar Cita
-                </a>
-            </div>
-            <!-- Plan Premium -->
-            <div class="bg-surface-container-lowest rounded-xl p-md custom-shadow-level-1 border border-outline-variant/10 flex flex-col">
-                <div class="mb-sm">
-                    <span class="font-label-md text-label-md text-on-surface-variant uppercase tracking-wider">Premium</span>
-                </div>
-                <h3 class="font-headline-lg text-headline-lg text-on-surface mb-xs">$95.000</h3>
-                <p class="font-caption text-caption text-secondary mb-md">Por consulta</p>
-                <ul class="flex flex-col gap-xs flex-1">
-                    <li class="flex items-center gap-xs font-body-md text-body-md text-on-surface">
-                        <span class="material-symbols-outlined text-primary text-[18px]" style="font-variation-settings: 'FILL' 1;">check_circle</span>
-                        Todo del Plan Integral
-                    </li>
-                    <li class="flex items-center gap-xs font-body-md text-body-md text-on-surface">
-                        <span class="material-symbols-outlined text-primary text-[18px]" style="font-variation-settings: 'FILL' 1;">check_circle</span>
-                        Cirugías menores
-                    </li>
-                    <li class="flex items-center gap-xs font-body-md text-body-md text-on-surface">
-                        <span class="material-symbols-outlined text-primary text-[18px]" style="font-variation-settings: 'FILL' 1;">check_circle</span>
-                        Hospitalización
-                    </li>
-                    <li class="flex items-center gap-xs font-body-md text-body-md text-on-surface">
-                        <span class="material-symbols-outlined text-primary text-[18px]" style="font-variation-settings: 'FILL' 1;">check_circle</span>
-                        Atención domiciliaria
-                    </li>
-                </ul>
-                <a href="{% url 'agenda:lista_citas' %}" class="mt-md w-full font-label-md text-label-md text-primary bg-secondary-container hover:bg-surface-container-high transition-colors rounded-lg px-md py-sm inline-block text-center">
-                    Agendar Cita
                 </a>
             </div>
         </div>

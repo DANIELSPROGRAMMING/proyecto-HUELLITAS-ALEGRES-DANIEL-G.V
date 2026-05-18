@@ -77,7 +77,9 @@ class ChatbotViewTests(TestCase):
     def test_post_location(self):
         response, data = self._post('ubicacion')
         self.assertEqual(response.status_code, 200)
-        self.assertIn('Calle 30', data['response'])
+        # Response comes from ConfiguracionClinica (real data) or fallback —
+        # both include "Dirección:" so we assert structural content, not hardcoded addresses.
+        self.assertIn('Dirección:', data['response'])
 
     def test_post_emergency(self):
         response, data = self._post('urgencia')

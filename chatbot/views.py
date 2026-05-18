@@ -18,18 +18,34 @@ from agenda.models import Disponibilidad, Cita
 
 
 # ──────────────────────────────────────────────
-# Static responses (no DB queries)
+# Clinic info — pulled from DB (ConfiguracionClinica model)
+# Horarios remain static (not configurable from admin).
 # ──────────────────────────────────────────────
 
-CLINIC_INFO = {
-    'nombre': 'Huellitas Alegres',
-    'direccion': 'Calle 30 # 15-42, Bogotá, Colombia',
-    'telefono': '(601) 456-7890',
+STATIC_SCHEDULE = {
     'horario_lun_vie': '7:00 AM — 7:00 PM',
     'horario_sabado': '8:00 AM — 2:00 PM',
     'horario_domingo': 'Cerrado',
-    'urgencias': 'Línea de urgencias 24/7: (601) 456-7891',
 }
+
+
+def _get_clinic_info():
+    """Fetch clinic info from ConfiguracionClinica singleton.
+    Falls back to defaults if the DB query fails."""
+    try:
+        from usuarios.models import ConfiguracionClinica
+        config = ConfiguracionClinica.get_config()
+        return {
+            'nombre': config.nombre,
+            'direccion': config.direccion,
+            'telefono': config.telefono,
+        }
+    except Exception:
+        return {
+            'nombre': 'Huellitas Alegres',
+            'direccion': 'Consulta nuestra ubicación en la página principal.',
+            'telefono': 'Contáctanos por nuestro formulario.',
+        }
 
 STATIC_RESPONSES = {
     'bienvenida': (
@@ -38,22 +54,26 @@ STATIC_RESPONSES = {
         'horarios de citas, ubicación de la clínica y más.'
     ),
     'ubicacion': (
-        f'📍 **{CLINIC_INFO["nombre"]}**\n'
-        f'Dirección: {CLINIC_INFO["direccion"]}\n'
-        f'Teléfono: {CLINIC_INFO["telefono"]}\n\n'
-        f'📅 **Horarios:**\n'
-        f'Lunes a Viernes: {CLINIC_INFO["horario_lun_vie"]}\n'
-        f'Sábados: {CLINIC_INFO["horario_sabado"]}\n'
-        f'Domingos: {CLINIC_INFO["horario_domingo"]}'
+        lambda info: (
+            f'📍 **{info["nombre"]}**\n'
+            f'Dirección: {info["direccion"]}\n'
+            f'Teléfono: {info["telefono"]}\n\n'
+            f'📅 **Horarios:**\n'
+            f'Lunes a Viernes: {STATIC_SCHEDULE["horario_lun_vie"]}\n'
+            f'Sábados: {STATIC_SCHEDULE["horario_sabado"]}\n'
+            f'Domingos: {STATIC_SCHEDULE["horario_domingo"]}'
+        )
     ),
     'horario': (
-        f'📅 **Horarios de atención:**\n'
-        f'Lunes a Viernes: {CLINIC_INFO["horario_lun_vie"]}\n'
-        f'Sábados: {CLINIC_INFO["horario_sabado"]}\n'
-        f'Domingos: {CLINIC_INFO["horario_domingo"]}'
+        lambda info: (
+            f'📅 **Horarios de atención:**\n'
+            f'Lunes a Viernes: {STATIC_SCHEDULE["horario_lun_vie"]}\n'
+            f'Sábados: {STATIC_SCHEDULE["horario_sabado"]}\n'
+            f'Domingos: {STATIC_SCHEDULE["horario_domingo"]}'
+        )
     ),
     'urgencia': (
-        f'🚨 **Línea de urgencias 24/7:** {CLINIC_INFO["urgencias"]}\n\n'
+        f'🚨 **Línea de urgencias 24/7:** Llama inmediatamente a la clínica.\n\n'
         f'Si tu mascota presenta alguno de estos síntomas, no esperes:\n'
         f'• Dificultad para respirar\n'
         f'• Convulsiones\n'
@@ -322,17 +342,18 @@ def procesar_chat(request):
     # Build response based on intent
     quick_replies = ['📅 Citas', '💊 Productos', '📍 Ubicación', '🚨 Urgencias']
     response = ''
+    clinic_info = _get_clinic_info()
 
     if intent == 'urgencia':
         response = STATIC_RESPONSES['urgencia']
         quick_replies = ['📍 Ubicación', '📅 Citas']
 
     elif intent == 'ubicacion':
-        response = STATIC_RESPONSES['ubicacion']
+        response = STATIC_RESPONSES['ubicacion'](clinic_info)
         quick_replies = ['📅 Citas', '💊 Productos', '🚨 Urgencias']
 
     elif intent == 'horario':
-        response = STATIC_RESPONSES['horario']
+        response = STATIC_RESPONSES['horario'](clinic_info)
         quick_replies = ['📅 Citas', '📍 Ubicación']
 
     elif intent == 'bienvenida':
@@ -348,12 +369,12 @@ def procesar_chat(request):
             response = STATIC_RESPONSES['bienvenida']
 
     elif intent == 'producto':
-        # Extract search terms from message
-        # Remove common filler words (already normalized by _normalize_message)
+        # Normalize and extract search terms
         stop_words = {'precio', 'precios', 'vale', 'cuesta', 'costo', 'cuanto',
                        'valor', 'lista', 'catalogo', 'tienda', 'comprar', 'del', 'de',
                        'la', 'el', 'las', 'los', 'un', 'una', 'por', 'favor',
-                       'necesito', 'quiero', 'busco', 'tienen', 'hay'}
+                       'necesito', 'quiero', 'busco', 'tienen', 'hay', 'producto',
+                       'productos', 'medicamento', 'medicamentos'}
         words = _normalize_message(message).split()
         search_terms = [w for w in words if w not in stop_words and len(w) > 2]
 
@@ -366,7 +387,20 @@ def procesar_chat(request):
                     break
             response = _format_product(products)
         else:
-            response = STATIC_RESPONSES['no_productos']
+            # No specific search term — show product categories from DB
+            categories = Producto.objects.filter(
+                esta_activo=True, cantidad_stock__gt=0
+            ).values_list('categoria', flat=True).distinct().order_by('categoria')
+            cat_names = [dict(CATEGORIAS).get(c, c) for c in categories]
+            if cat_names:
+                cat_list = '\n'.join(f'• {name}' for name in cat_names)
+                response = (
+                    f'💊 **Categorías disponibles en nuestra tienda:**\n\n'
+                    f'{cat_list}\n\n'
+                    f'Escribe lo que buscas, por ejemplo: "precio de vacuna" o "alimento para perro".'
+                )
+            else:
+                response = STATIC_RESPONSES['no_productos']
         quick_replies = ['📅 Citas', '📍 Ubicación', '🚨 Urgencias']
 
     elif intent == 'cita':
