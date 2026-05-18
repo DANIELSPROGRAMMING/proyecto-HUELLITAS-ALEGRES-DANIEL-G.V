@@ -1,0 +1,341 @@
+"""Chatbot de Reglas — Huellitas Alegres
+
+Rule-based chatbot that responds with real data from the database.
+No external AI or paid APIs. Keyword detection + DB queries.
+
+Implemented for INNOVATECH competition and SENA project presentation.
+"""
+
+import json
+from django.http import JsonResponse
+from django.views.decorators.http import require_POST
+from django.views.decorators.csrf import csrf_exempt
+
+from productos.models import Producto, CATEGORIAS
+from agenda.models import Disponibilidad, Cita
+
+
+# ──────────────────────────────────────────────
+# Static responses (no DB queries)
+# ──────────────────────────────────────────────
+
+CLINIC_INFO = {
+    'nombre': 'Huellitas Alegres',
+    'direccion': 'Calle 30 # 15-42, Bogotá, Colombia',
+    'telefono': '(601) 456-7890',
+    'horario_lun_vie': '7:00 AM — 7:00 PM',
+    'horario_sabado': '8:00 AM — 2:00 PM',
+    'horario_domingo': 'Cerrado',
+    'urgencias': 'Línea de urgencias 24/7: (601) 456-7891',
+}
+
+STATIC_RESPONSES = {
+    'bienvenida': (
+        '¡Hola! 👋 Soy el asistente de Huellitas Alegres. '
+        '¿En qué puedo ayudarte? Puedo informarte sobre precios de productos, '
+        'horarios de citas, ubicación de la clínica y más.'
+    ),
+    'ubicacion': (
+        f'📍 **{CLINIC_INFO["nombre"]}**\n'
+        f'Dirección: {CLINIC_INFO["direccion"]}\n'
+        f'Teléfono: {CLINIC_INFO["telefono"]}\n\n'
+        f'📅 **Horarios:**\n'
+        f'Lunes a Viernes: {CLINIC_INFO["horario_lun_vie"]}\n'
+        f'Sábados: {CLINIC_INFO["horario_sabado"]}\n'
+        f'Domingos: {CLINIC_INFO["horario_domingo"]}'
+    ),
+    'horario': (
+        f'📅 **Horarios de atención:**\n'
+        f'Lunes a Viernes: {CLINIC_INFO["horario_lun_vie"]}\n'
+        f'Sábados: {CLINIC_INFO["horario_sabado"]}\n'
+        f'Domingos: {CLINIC_INFO["horario_domingo"]}'
+    ),
+    'urgencia': (
+        f'🚨 **Línea de urgencias 24/7:** {CLINIC_INFO["urgencias"]}\n\n'
+        f'Si tu mascota presenta alguno de estos síntomas, no esperes:\n'
+        f'• Dificultad para respirar\n'
+        f'• Convulsiones\n'
+        f'• Sangrado profuso\n'
+        f'• Traumatismo severo\n'
+        f'• Envenenamiento sospechado\n\n'
+        f'Acude de inmediato a nuestra clínica o llama a la línea de emergencias.'
+    ),
+    'fallback': (
+        'No estoy seguro de entender tu consulta. 😅\n\n'
+        'Puedo ayudarte con:\n'
+        '• 💊 Precios de productos y medicamentos\n'
+        '• 📅 Disponibilidad de citas\n'
+        '• 📍 Ubicación y horarios\n'
+        '• 🚨 Urgencias\n\n'
+        'Intenta con palabras como "precio", "cita", "horario" o "urgencia".'
+    ),
+    'no_productos': (
+        'No encontré productos que coincidan con tu búsqueda. '
+        'Intenta con otros términos como "vacuna", "alimento" o "medicamento". 💊'
+    ),
+    'no_citas': (
+        'No hay horarios disponibles en este momento. '
+        'Te recomiendo contactar directamente a la clínica o intentar más tarde. 📅'
+    ),
+}
+
+
+# ──────────────────────────────────────────────
+# Keyword detection
+# ──────────────────────────────────────────────
+
+KEYWORD_MAP = {
+    # Greetings
+    'bienvenida': ['hola', 'buenas', 'buenos dias', 'buenas tardes', 'buenas noches',
+                   'hey', 'hi', 'saludos', 'inicio', 'empezar', 'ayuda'],
+    # Location & hours
+    'ubicacion': ['ubicacion', 'direccion', 'donde queda', 'donde estan', 'como llego',
+                  'ubicar', 'localizar', 'sede', 'clinica esta'],
+    'horario': ['horario', 'horarios', 'hora', 'horas', 'abren', 'cierran', 'atienden',
+                'que dias', 'lunes', 'sabado', 'domingo', 'turno'],
+    # Emergency
+    'urgencia': ['urgencia', 'urgente', 'emergencia', 'emergency', 'desesperado',
+                 'no respira', 'convulsion', 'sangrando', 'envenenado', 'morir',
+                 'grave', 'desmayo', 'atropellado', 'intoxicado'],
+    # Products & prices
+    'producto': ['precio', 'precios', 'vale', 'cuesta', 'costo', 'cuanto',
+                 'valor', 'lista', 'catalogo', 'tienda', 'comprar',
+                 'vacuna', 'medicamento', 'alimento', 'comida', 'pipeta',
+                 'desparasitar', 'antipulgas', 'antibiotico', 'pastilla',
+                 'crema', 'shampoo', 'collar', 'juguete', 'arena',
+                 'suplemento', 'vitamina', 'suero'],
+    # Appointments
+    'cita': ['cita', 'citas', 'agendar', 'turno', 'turnos', 'disponibilidad',
+             'disponible', 'horario disponible', 'reservar', 'programar',
+             'consultar', 'consulta', 'veterinario', 'doctor', 'doctora',
+             'agendar cita', 'pedir cita', 'solicitar cita'],
+}
+
+
+def _detect_intent(message: str) -> str:
+    """Detect the user's intent from keywords in the message.
+
+    Returns the intent key or 'fallback' if no keywords match.
+    Priority: urgencia > cita > producto > ubicacion/horario > bienvenida > fallback
+    """
+    msg = message.lower().strip()
+
+    # Check intents in priority order
+    priority_order = ['urgencia', 'cita', 'producto', 'ubicacion', 'horario', 'bienvenida']
+
+    for intent in priority_order:
+        keywords = KEYWORD_MAP.get(intent, [])
+        for kw in keywords:
+            if kw in msg:
+                return intent
+
+    # Also check for category names directly
+    for val, label in CATEGORIAS:
+        if val in msg or label.lower() in msg:
+            return 'producto'
+
+    return 'fallback'
+
+
+def _search_products(query: str) -> list:
+    """Search products by keyword. Returns max 3 results.
+
+    Searches in product name, description, and category.
+    Producto.objects already filters esta_activo=True via ProductoManager.
+    We additionally filter for stock > 0.
+    """
+    # Search by name first (most relevant)
+    products = list(
+        Producto.objects
+        .filter(cantidad_stock__gt=0, nombre__icontains=query)[:3]
+    )
+
+    # Search description if not enough results
+    if len(products) < 3:
+        existing_ids = [p.pk for p in products]
+        desc_results = Producto.objects.filter(
+            cantidad_stock__gt=0,
+        ).exclude(pk__in=existing_ids).filter(
+            descripcion__icontains=query,
+        )[:3 - len(products)]
+        products.extend(desc_results)
+
+    # Search category if still not enough
+    if len(products) < 3:
+        existing_ids = [p.pk for p in products]
+        cat_results = Producto.objects.filter(
+            cantidad_stock__gt=0,
+        ).exclude(pk__in=existing_ids).filter(
+            categoria__icontains=query,
+        )[:3 - len(products)]
+        products.extend(cat_results)
+
+    return products
+
+
+def _get_available_slots(limit=5) -> list:
+    """Get upcoming available slots for appointments.
+
+    Returns up to `limit` Disponibilidad objects that are
+    active, future-dated, and not occupied by a Cita.
+    """
+    from django.utils import timezone as dj_tz
+
+    available = Disponibilidad.objects.filter(
+        activa=True,
+        fecha__gte=dj_tz.localdate(),
+    ).exclude(
+        pk__in=Cita.objects.filter(
+            estado__in=['Programada', 'Atendida']
+        ).values('disponibilidad_id')
+    ).select_related('veterinario').order_by('fecha', 'hora_inicio')[:limit]
+
+    return list(available)
+
+
+def _format_product(products: list) -> str:
+    """Format product search results as a readable message."""
+    if not products:
+        return STATIC_RESPONSES['no_productos']
+
+    lines = ['💊 **Productos encontrados:**\n']
+    for p in products:
+        cat = p.get_categoria_display()
+        lines.append(f'• **{p.nombre}** ({cat}) — ${p.precio:,.0f}')
+        if p.cantidad_stock <= 10:
+            lines.append(f'  ⚠️ ¡Últimas {p.cantidad_stock} unidades!')
+    lines.append('\n¿Necesitas más información sobre alguno? 😊')
+    return '\n'.join(lines)
+
+
+def _format_slots(slots: list) -> str:
+    """Format available appointment slots as a readable message."""
+    if not slots:
+        return STATIC_RESPONSES['no_citas']
+
+    lines = ['📅 **Horarios disponibles:**\n']
+    for s in slots:
+        vet = s.veterinario.get_full_name() or s.veterinario.email
+        lines.append(
+            f'• {s.fecha.strftime("%a %d/%m")} '
+            f'{s.hora_inicio.strftime("%H:%M")}–{s.hora_fin.strftime("%H:%M")} '
+            f'— Dr/a. {vet}'
+        )
+    lines.append('\n¿Quieres agendar una cita? Inicia sesión para hacerlo. 😊')
+    return '\n'.join(lines)
+
+
+# ──────────────────────────────────────────────
+# View
+# ──────────────────────────────────────────────
+
+@csrf_exempt
+@require_POST
+def procesar_chat(request):
+    """Process a chatbot message and return a JSON response.
+
+    Request body (JSON):
+        { "message": "¿Cuánto vale la vacuna de la rabia?" }
+
+    Response (JSON):
+        { "response": "💊 Productos encontrados:...", "quick_replies": [...] }
+    """
+    try:
+        data = json.loads(request.body)
+        message = data.get('message', '').strip()
+    except (json.JSONDecodeError, AttributeError):
+        return JsonResponse({
+            'response': STATIC_RESPONSES['fallback'],
+            'quick_replies': ['📅 Citas', '💊 Productos', '📍 Ubicación', '🚨 Urgencias'],
+        })
+
+    if not message:
+        return JsonResponse({
+            'response': STATIC_RESPONSES['bienvenida'],
+            'quick_replies': ['📅 Citas', '💊 Productos', '📍 Ubicación', '🚨 Urgencias'],
+        })
+
+    intent = _detect_intent(message)
+
+    # Authenticated user personalization
+    is_authenticated = request.user.is_authenticated
+    user_name = ''
+    user_mascotas = []
+    user_citas_count = 0
+
+    if is_authenticated:
+        user_name = request.user.first_name or request.user.username
+        user_mascotas = list(
+            request.user.mascotas.values_list('nombre', flat=True)[:3]
+        )
+        user_citas_count = Cita.objects.filter(
+            mascota__propietario=request.user,
+            estado='Programada',
+        ).count()
+
+    # Build response based on intent
+    quick_replies = ['📅 Citas', '💊 Productos', '📍 Ubicación', '🚨 Urgencias']
+    response = ''
+
+    if intent == 'urgencia':
+        response = STATIC_RESPONSES['urgencia']
+        quick_replies = ['📍 Ubicación', '📅 Citas']
+
+    elif intent == 'ubicacion':
+        response = STATIC_RESPONSES['ubicacion']
+        quick_replies = ['📅 Citas', '💊 Productos', '🚨 Urgencias']
+
+    elif intent == 'horario':
+        response = STATIC_RESPONSES['horario']
+        quick_replies = ['📅 Citas', '📍 Ubicación']
+
+    elif intent == 'bienvenida':
+        if is_authenticated and user_name:
+            greeting = f'¡Hola, {user_name}! 👋'
+            if user_mascotas:
+                mascotas_str = ', '.join(user_mascotas)
+                greeting += f' ¿Cómo están {mascotas_str}?'
+            if user_citas_count > 0:
+                greeting += f' Tienes {user_citas_count} cita{"s" if user_citas_count > 1 else ""} programada{"s" if user_citas_count > 1 else ""}.'
+            response = greeting + '\n\n' + STATIC_RESPONSES['bienvenida']
+        else:
+            response = STATIC_RESPONSES['bienvenida']
+
+    elif intent == 'producto':
+        # Extract search terms from message
+        # Remove common filler words
+        stop_words = {'precio', 'precios', 'vale', 'cuesta', 'costo', 'cuanto',
+                       'valor', 'lista', 'catalogo', 'tienda', 'comprar', 'del', 'de',
+                       'la', 'el', 'las', 'los', 'un', 'una', 'por', 'favor',
+                       'necesito', 'quiero', 'busco', 'tienen', 'hay'}
+        words = message.lower().split()
+        search_terms = [w for w in words if w not in stop_words and len(w) > 2]
+
+        if search_terms:
+            # Try each term until we find results
+            products = []
+            for term in search_terms:
+                products = _search_products(term)
+                if products:
+                    break
+            response = _format_product(products)
+        else:
+            response = STATIC_RESPONSES['no_productos']
+        quick_replies = ['📅 Citas', '📍 Ubicación', '🚨 Urgencias']
+
+    elif intent == 'cita':
+        slots = _get_available_slots(limit=5)
+        if is_authenticated:
+            header = f'📅 {user_name}, estos son los próximos turnos disponibles:\n\n'
+        else:
+            header = '📅 Próximos turnos disponibles:\n\n'
+        response = header + _format_slots(slots)
+        quick_replies = ['💊 Productos', '📍 Ubicación', '🚨 Urgencias']
+
+    else:
+        response = STATIC_RESPONSES['fallback']
+
+    return JsonResponse({
+        'response': response,
+        'quick_replies': quick_replies,
+    })

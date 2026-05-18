@@ -1,0 +1,268 @@
+{% load static %}
+{# ──────────────────────────────────────────────────────────────── #}
+{# Chatbot de Reglas — Huellitas Alegres                          #}
+{# Floating bubble + chat window. Included in base.html.          #}
+{# Uses Alpine.js (already loaded) + DESIGN.md color system.      #}
+{# ──────────────────────────────────────────────────────────────── #}
+
+{# ── Chatbot styles (scoped with .chatbot-widget) ── #}
+<style>
+    .chatbot-widget { font-family: 'Manrope', sans-serif; }
+    .chatbot-widget .chat-msg {
+        animation: chatFadeIn .25s ease-out;
+    }
+    @keyframes chatFadeIn {
+        from { opacity: 0; transform: translateY(8px); }
+        to   { opacity: 1; transform: translateY(0); }
+    }
+    .chatbot-widget .chat-window {
+        animation: chatSlideUp .2s ease-out;
+    }
+    @keyframes chatSlideUp {
+        from { opacity: 0; transform: translateY(16px) scale(.97); }
+        to   { opacity: 1; transform: translateY(0) scale(1); }
+    }
+    .chatbot-widget .bubble-pulse {
+        animation: bubblePulse 2s ease-in-out infinite;
+    }
+    @keyframes bubblePulse {
+        0%, 100% { box-shadow: 0 0 0 0 rgba(55, 86, 59, .4); }
+        50%      { box-shadow: 0 0 0 10px rgba(55, 86, 59, 0); }
+    }
+    .dark .chatbot-widget .bubble-pulse {
+        animation: bubblePulseDark 2s ease-in-out infinite;
+    }
+    @keyframes bubblePulseDark {
+        0%, 100% { box-shadow: 0 0 0 0 rgba(125, 186, 133, .4); }
+        50%      { box-shadow: 0 0 0 10px rgba(125, 186, 133, 0); }
+    }
+    /* Scrollable messages area */
+    .chatbot-widget .chat-messages {
+        scrollbar-width: thin;
+        scrollbar-color: var(--color-outline-variant) transparent;
+    }
+    .chatbot-widget .chat-messages::-webkit-scrollbar { width: 4px; }
+    .chatbot-widget .chat-messages::-webkit-scrollbar-thumb { background: var(--color-outline-variant); border-radius: 9999px; }
+    .chatbot-widget .chat-messages::-webkit-scrollbar-track { background: transparent; }
+</style>
+
+{# ── Alpine component ── #}
+<div class="chatbot-widget" x-data="chatbotWidget()" x-init="init()">
+
+    {# ── Floating bubble ── #}
+    <button
+        @click="open = true; $nextTick(() => $refs.chatInput?.focus())"
+        x-show="!open"
+        x-transition
+        class="fixed bottom-6 right-6 z-50 w-14 h-14 rounded-full bg-primary text-on-primary
+               shadow-lg hover:shadow-xl hover:scale-105 transition-all duration-200
+               flex items-center justify-center bubble-pulse"
+        aria-label="Abrir chat de asistencia"
+    >
+        <span class="material-symbols-outlined text-[28px] icon-fill">smart_toy</span>
+    </button>
+
+    {# ── Chat window ── #}
+    <div
+        x-show="open"
+        x-transition:enter="chatSlideUp"
+        class="chat-window fixed bottom-6 right-6 z-50 w-[360px] max-w-[calc(100vw-2rem)]
+               bg-surface-container-lowest rounded-2xl shadow-2xl border border-outline-variant/30
+               flex flex-col overflow-hidden"
+        style="height: min(520px, calc(100vh - 4rem));"
+    >
+        {# ── Header ── #}
+        <div class="bg-primary text-on-primary px-4 py-3 flex items-center justify-between flex-shrink-0">
+            <div class="flex items-center gap-2.5">
+                <span class="material-symbols-outlined text-[24px] icon-fill">smart_toy</span>
+                <div>
+                    <p class="font-label-md text-label-md leading-tight">Asistente Virtual</p>
+                    <p class="text-[11px] opacity-80 leading-tight">Huellitas Alegres</p>
+                </div>
+            </div>
+            <button @click="open = false" class="hover:opacity-70 transition-opacity p-1" aria-label="Cerrar chat">
+                <span class="material-symbols-outlined text-[22px]">close</span>
+            </button>
+        </div>
+
+        {# ── Messages ── #}
+        <div
+            class="chat-messages flex-1 overflow-y-auto px-3 py-3 space-y-3 bg-surface"
+            x-ref="chatMessages"
+        >
+            {# ── Welcome message ── #}
+            <template x-if="messages.length === 0">
+                <div class="chat-msg flex gap-2.5">
+                    <div class="w-8 h-8 rounded-full bg-primary-container flex items-center justify-center flex-shrink-0">
+                        <span class="material-symbols-outlined text-on-primary-container text-[18px] icon-fill">smart_toy</span>
+                    </div>
+                    <div class="bg-surface-container rounded-xl rounded-tl-none px-3.5 py-2.5 max-w-[80%]">
+                        <p class="text-on-surface text-[14px] leading-relaxed" x-text="welcomeMsg"></p>
+                    </div>
+                </div>
+            </template>
+
+            {# ── Chat messages ── #}
+            <template x-for="(msg, idx) in messages" :key="idx">
+                <div class="chat-msg" :class="msg.sender === 'bot' ? 'flex gap-2.5' : 'flex gap-2.5 justify-end'">
+                    {# Bot message ── #}
+                    <template x-if="msg.sender === 'bot'">
+                        <div class="flex gap-2.5 max-w-[85%]">
+                            <div class="w-7 h-7 rounded-full bg-primary-container flex items-center justify-center flex-shrink-0">
+                                <span class="material-symbols-outlined text-on-primary-container text-[16px] icon-fill">smart_toy</span>
+                            </div>
+                            <div class="bg-surface-container rounded-xl rounded-tl-none px-3.5 py-2.5">
+                                <p class="text-on-surface text-[13.5px] leading-relaxed whitespace-pre-line"
+                                   x-text="msg.text"></p>
+                            </div>
+                        </div>
+                    </template>
+
+                    {# User message ── #}
+                    <template x-if="msg.sender === 'user'">
+                        <div class="bg-primary text-on-primary rounded-xl rounded-tr-none px-3.5 py-2.5 max-w-[80%]">
+                            <p class="text-[13.5px] leading-relaxed" x-text="msg.text"></p>
+                        </div>
+                    </template>
+                </div>
+            </template>
+
+            {# ── Typing indicator ── #}
+            <template x-if="loading">
+                <div class="chat-msg flex gap-2.5">
+                    <div class="w-7 h-7 rounded-full bg-primary-container flex items-center justify-center flex-shrink-0">
+                        <span class="material-symbols-outlined text-on-primary-container text-[16px] icon-fill">smart_toy</span>
+                    </div>
+                    <div class="bg-surface-container rounded-xl rounded-tl-none px-3.5 py-2.5">
+                        <div class="flex gap-1 items-center h-5">
+                            <span class="w-2 h-2 rounded-full bg-on-surface-variant animate-bounce" style="animation-delay:.0s"></span>
+                            <span class="w-2 h-2 rounded-full bg-on-surface-variant animate-bounce" style="animation-delay:.15s"></span>
+                            <span class="w-2 h-2 rounded-full bg-on-surface-variant animate-bounce" style="animation-delay:.30s"></span>
+                        </div>
+                    </div>
+                </div>
+            </template>
+        </div>
+
+        {# ── Quick replies ── #}
+        <div x-show="quickReplies.length > 0" class="px-3 py-2 flex flex-wrap gap-2 bg-surface border-t border-outline-variant/10">
+            <template x-for="(reply, idx) in quickReplies" :key="idx">
+                <button
+                    @click="sendQuickReply(reply)"
+                    class="bg-surface-container-high hover:bg-primary-container/30 text-on-surface text-[12.5px] font-medium
+                           px-3 py-1.5 rounded-full border border-outline-variant/30 hover:border-primary/40
+                           transition-all duration-150"
+                    x-text="reply"
+                ></button>
+            </template>
+        </div>
+
+        {# ── Input area ── #}
+        <div class="px-3 py-2.5 bg-surface-container-lowest border-t border-outline-variant/20 flex-shrink-0">
+            <form @submit.prevent="sendMessage()" class="flex gap-2">
+                <input
+                    x-ref="chatInput"
+                    type="text"
+                    x-model="input"
+                    :disabled="loading"
+                    placeholder="Escribe tu consulta..."
+                    class="flex-1 bg-surface-container rounded-lg px-3.5 py-2 text-on-surface text-[13.5px]
+                           border border-outline-variant/30 focus:border-primary focus:ring-1 focus:ring-primary/30
+                           focus:outline-none placeholder:text-on-surface-variant/50 transition-colors"
+                    autocomplete="off"
+                />
+                <button
+                    type="submit"
+                    :disabled="!input.trim() || loading"
+                    class="bg-primary text-on-primary rounded-lg px-3 py-2
+                           disabled:opacity-40 disabled:cursor-not-allowed hover:opacity-90 transition-opacity"
+                    aria-label="Enviar mensaje"
+                >
+                    <span class="material-symbols-outlined text-[20px]">send</span>
+                </button>
+            </form>
+        </div>
+    </div>
+</div>
+
+{# ── Alpine.js component logic ── #}
+<script>
+function chatbotWidget() {
+    return {
+        open: false,
+        input: '',
+        loading: false,
+        messages: [],
+        quickReplies: ['📅 Citas', '💊 Productos', '📍 Ubicación', '🚨 Urgencias'],
+        welcomeMsg: '',
+        chatUrl: '{% url "chatbot:procesar" %}',
+
+        async init() {
+            // Personalized welcome if authenticated
+            {% if user.is_authenticated %}
+                const name = '{{ user.first_name|default:user.username|escapejs }}';
+                this.welcomeMsg = '¡Hola, ' + name + '! 👋 Soy el asistente de Huellitas Alegres. ¿En qué puedo ayudarte?';
+            {% else %}
+                this.welcomeMsg = '¡Hola! 👋 Soy el asistente de Huellitas Alegres. ¿En qué puedo ayudarte? Puedo informarte sobre precios, citas y más.';
+            {% endif %}
+        },
+
+        async sendMessage() {
+            const text = this.input.trim();
+            if (!text || this.loading) return;
+
+            this.messages.push({ sender: 'user', text });
+            this.input = '';
+            this.quickReplies = [];
+            await this._fetchResponse(text);
+        },
+
+        async sendQuickReply(reply) {
+            // Strip emoji prefix for the query
+            const text = reply.replace(/^[\p{Emoji}\s]+/u, '').trim();
+            this.messages.push({ sender: 'user', text: reply });
+            this.quickReplies = [];
+            await this._fetchResponse(text);
+        },
+
+        async _fetchResponse(text) {
+            this.loading = true;
+            this._scrollToBottom();
+
+            try {
+                const res = await fetch(this.chatUrl, {
+                    method: 'POST',
+                    headers: {
+                        'Content-Type': 'application/json',
+                        'X-CSRFToken': document.querySelector('[name=csrfmiddlewaretoken]')?.value || '',
+                    },
+                    body: JSON.stringify({ message: text }),
+                });
+
+                if (!res.ok) throw new Error('Error de conexión');
+
+                const data = await res.json();
+                this.messages.push({ sender: 'bot', text: data.response });
+                this.quickReplies = data.quick_replies || [];
+
+            } catch (err) {
+                this.messages.push({
+                    sender: 'bot',
+                    text: '⚠️ No pude conectar con el servidor. Intenta de nuevo en un momento.',
+                });
+                this.quickReplies = ['📅 Citas', '💊 Productos', '📍 Ubicación', '🚨 Urgencias'];
+            }
+
+            this.loading = false;
+            this._scrollToBottom();
+        },
+
+        _scrollToBottom() {
+            this.$nextTick(() => {
+                const el = this.$refs.chatMessages;
+                if (el) el.scrollTop = el.scrollHeight;
+            });
+        },
+    };
+}
+</script>

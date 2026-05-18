@@ -28,6 +28,7 @@ urlpatterns = [
     path('servicios/', include(('servicios.urls', 'servicios'), namespace='servicios')),
     path('tienda/', include(('tienda.urls', 'tienda'), namespace='tienda')),
     path('proveedores/', include(('proveedores.urls', 'proveedores'), namespace='proveedores')),
+    path('chatbot/', include(('chatbot.urls', 'chatbot'), namespace='chatbot')),
 ]
 
 if settings.DEBUG:

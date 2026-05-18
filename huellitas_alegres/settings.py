@@ -41,6 +41,7 @@ INSTALLED_APPS = [
     'entregas',  # aplicacion para gestion de pedidos y entregas domiciliarias
     'tienda',  # aplicacion para catalogo y carrito de compras del Cliente
     'proveedores',  # aplicacion para gestion de proveedores
+    'chatbot',  # chatbot de reglas para atencion al cliente
 ]
 
 MIDDLEWARE = [

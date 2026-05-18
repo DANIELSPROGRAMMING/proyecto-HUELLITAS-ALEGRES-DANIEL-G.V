@@ -275,8 +275,11 @@
     </div>
 </footer>
 
-{# ── Alpine.js for dropdown toggle ── #}
+{# ── Alpine.js for dropdown toggle + chatbot ── #}
 <script defer src="https://cdn.jsdelivr.net/npm/alpinejs@3.14.1/dist/cdn.min.js"></script>
+
+{# ── Chatbot widget (all pages) ── #}
+{% include 'chatbot/chatbot_widget.html' %}
 
 {% block scripts %}{% endblock scripts %}
 </body>
