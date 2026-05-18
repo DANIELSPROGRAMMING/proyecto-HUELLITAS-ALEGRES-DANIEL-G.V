@@ -229,10 +229,29 @@ def _format_slots(slots: list) -> str:
 # View
 # ──────────────────────────────────────────────
 
+# ──────────────────────────────────────────────
+# Rate limiting — max 30 requests per session per 60 seconds.
+# Public endpoint (no auth required). Product info is intentionally
+# public: prices and stock levels are visible to any visitor, same as
+# a public product catalog. User-specific data (pets, appointments)
+# is only shown to authenticated users.
+# ──────────────────────────────────────────────
+
+import time
+
+_MAX_CHAT_REQUESTS = 30
+_CHAT_WINDOW_SECONDS = 60
+
+
 @csrf_exempt
 @require_POST
 def procesar_chat(request):
     """Process a chatbot message and return a JSON response.
+
+    Rate-limited to _MAX_CHAT_REQUESTS per session per _CHAT_WINDOW_SECONDS.
+    Public endpoint — no authentication required. Product prices and
+    general info are public by design (like a store catalog). Personal
+    data is only included for authenticated users.
 
     Request body (JSON):
         { "message": "¿Cuánto vale la vacuna de la rabia?" }
@@ -240,6 +259,18 @@ def procesar_chat(request):
     Response (JSON):
         { "response": "💊 Productos encontrados:...", "quick_replies": [...] }
     """
+    # ── Rate limit (session-based) ──
+    chat_history = request.session.get('_chat_timestamps', [])
+    now = time.time()
+    chat_history = [ts for ts in chat_history if now - ts < _CHAT_WINDOW_SECONDS]
+    if len(chat_history) >= _MAX_CHAT_REQUESTS:
+        return JsonResponse({
+            'response': 'Has enviado muchos mensajes. Espera un momento e intenta de nuevo. ⏳',
+            'quick_replies': ['📅 Citas', '💊 Productos', '📍 Ubicación', '🚨 Urgencias'],
+        }, status=429)
+    chat_history.append(now)
+    request.session['_chat_timestamps'] = chat_history
+
     try:
         data = json.loads(request.body)
         message = data.get('message', '').strip()

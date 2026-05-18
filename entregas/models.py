@@ -189,6 +189,7 @@ class PedidoItem(models.Model):
         db_table = 'entregas_pedidoitem'
         verbose_name = 'Item del pedido'
         verbose_name_plural = 'Items del pedido'
+        ordering = ['pk']
 
     def __str__(self):
         return f"{self.producto.nombre} × {self.cantidad}"

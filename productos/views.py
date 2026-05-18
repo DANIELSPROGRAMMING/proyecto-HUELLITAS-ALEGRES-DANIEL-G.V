@@ -17,7 +17,7 @@ def lista_productos(request):
 
     Solo Vet y Admin pueden gestionar productos. El Cliente usa la Tienda.
     """
-    qs = Producto.objects.select_related().order_by('nombre')
+    qs = Producto.objects.select_related('proveedor').order_by('nombre')
 
     search = request.GET.get('q', '').strip()
     if search:
@@ -37,8 +37,12 @@ def lista_productos(request):
     except (PageNotAnInteger, EmptyPage):
         page_obj = paginator.page(1)
 
-    # Productos con alertas de stock para la barra lateral
-    alert_products = [p for p in Producto.objects.all() if p.estado_stock != 'verde']
+    # Productos con alertas de stock para la barra lateral — filtered in DB
+    from django.db.models import F, ExpressionWrapper, FloatField
+    alert_products = list(Producto.objects.filter(
+        esta_activo=True,
+        cantidad_stock__lte=F('stock_minimo') * 1.5,
+    ).order_by('nombre'))
 
     return render(request, 'productos/product_list.html', {
         'page_obj': page_obj,

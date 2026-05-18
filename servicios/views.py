@@ -13,7 +13,7 @@ from .forms import ServicioForm
 @login_required(login_url='/usuarios/login/')
 def lista_servicios(request):
     """Lista de servicios activos — cualquier usuario autenticado puede ver."""
-    qs = Servicio.objects.select_related().order_by('nombre')
+    qs = Servicio.objects.order_by('nombre')
 
     search = request.GET.get('q', '').strip()
     if search:

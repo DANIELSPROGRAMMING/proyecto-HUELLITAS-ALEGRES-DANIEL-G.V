@@ -57,6 +57,15 @@ class Notificacion(models.Model):
         verbose_name_plural = 'Notificaciones'
         db_table = 'notificaciones_notificacion'
         ordering = ['-fecha_creacion']
+        indexes = [
+            models.Index(fields=['usuario', 'leido', '-fecha_creacion'], name='notif_user_leido_date'),
+        ]
+
+    def clean(self):
+        """Validate that url is an internal path (starts with /) if provided."""
+        from django.core.exceptions import ValidationError
+        if self.url and not self.url.startswith('/'):
+            raise ValidationError({'url': 'La URL debe ser una ruta interna que empiece con /'})
 
     def __str__(self):
         estado = '✓' if self.leido else '●'

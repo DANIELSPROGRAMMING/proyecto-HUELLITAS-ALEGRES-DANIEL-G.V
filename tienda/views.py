@@ -113,7 +113,7 @@ def catalogo(request):
     Any authenticated user can browse, but only Cliente can add to cart.
     Shows only active products (esta_activo=True) via Producto.objects manager.
     """
-    qs = Producto.objects.select_related().order_by('categoria', 'nombre')
+    qs = Producto.objects.select_related('proveedor').order_by('categoria', 'nombre')
 
     # Search by name or description
     search = request.GET.get('q', '').strip()
@@ -177,6 +177,7 @@ def agregar_carrito(request, pk):
         {'<product_id>': {'name': str, 'price': str, 'quantity': int}}
     """
     if request.method != 'POST':
+        messages.warning(request, 'Acción no permitida. Usa los botones del catálogo para agregar productos.')
         return redirect('tienda:catalogo')
 
     producto = get_object_or_404(Producto, pk=pk)
