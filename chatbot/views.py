@@ -7,6 +7,8 @@ Implemented for INNOVATECH competition and SENA project presentation.
 """
 
 import json
+import re
+import unicodedata
 from django.http import JsonResponse
 from django.views.decorators.http import require_POST
 from django.views.decorators.csrf import csrf_exempt
@@ -112,13 +114,26 @@ KEYWORD_MAP = {
 }
 
 
+def _normalize_message(message: str) -> str:
+    """Normalize a chat message: strip emojis, remove accents, lowercase.
+
+    quick replies like '📅 Citas' become 'citas' — matching keyword map entries.
+    """
+    # Remove emojis and special unicode symbols (keep letters, numbers, spaces)
+    msg = re.sub(r'[^\w\s]', '', message, flags=re.UNICODE)
+    # Remove diacritics/accents: 'Ubicación' → 'Ubicacion'
+    msg = unicodedata.normalize('NFD', msg)
+    msg = ''.join(c for c in msg if unicodedata.category(c) != 'Mn')
+    return msg.lower().strip()
+
+
 def _detect_intent(message: str) -> str:
     """Detect the user's intent from keywords in the message.
 
     Returns the intent key or 'fallback' if no keywords match.
     Priority: urgencia > cita > producto > ubicacion/horario > bienvenida > fallback
     """
-    msg = message.lower().strip()
+    msg = _normalize_message(message)
 
     # Check intents in priority order
     priority_order = ['urgencia', 'cita', 'producto', 'ubicacion', 'horario', 'bienvenida']
@@ -334,12 +349,12 @@ def procesar_chat(request):
 
     elif intent == 'producto':
         # Extract search terms from message
-        # Remove common filler words
+        # Remove common filler words (already normalized by _normalize_message)
         stop_words = {'precio', 'precios', 'vale', 'cuesta', 'costo', 'cuanto',
                        'valor', 'lista', 'catalogo', 'tienda', 'comprar', 'del', 'de',
                        'la', 'el', 'las', 'los', 'un', 'una', 'por', 'favor',
                        'necesito', 'quiero', 'busco', 'tienen', 'hay'}
-        words = message.lower().split()
+        words = _normalize_message(message).split()
         search_terms = [w for w in words if w not in stop_words and len(w) > 2]
 
         if search_terms:
