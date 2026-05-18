@@ -172,8 +172,8 @@ def _detect_intent(message: str) -> str:
     return 'fallback'
 
 
-def _search_products(query: str) -> list:
-    """Search products by keyword. Returns max 3 results.
+def _search_products(query: str, limit: int = 5) -> list:
+    """Search products by keyword. Returns up to `limit` results.
 
     Searches in product name, description, and category.
     Producto.objects already filters esta_activo=True via ProductoManager.
@@ -182,27 +182,27 @@ def _search_products(query: str) -> list:
     # Search by name first (most relevant)
     products = list(
         Producto.objects
-        .filter(cantidad_stock__gt=0, nombre__icontains=query)[:3]
+        .filter(cantidad_stock__gt=0, nombre__icontains=query)[:limit]
     )
 
     # Search description if not enough results
-    if len(products) < 3:
+    if len(products) < limit:
         existing_ids = [p.pk for p in products]
         desc_results = Producto.objects.filter(
             cantidad_stock__gt=0,
         ).exclude(pk__in=existing_ids).filter(
             descripcion__icontains=query,
-        )[:3 - len(products)]
+        )[:limit - len(products)]
         products.extend(desc_results)
 
     # Search category if still not enough
-    if len(products) < 3:
+    if len(products) < limit:
         existing_ids = [p.pk for p in products]
         cat_results = Producto.objects.filter(
             cantidad_stock__gt=0,
         ).exclude(pk__in=existing_ids).filter(
             categoria__icontains=query,
-        )[:3 - len(products)]
+        )[:limit - len(products)]
         products.extend(cat_results)
 
     return products
@@ -378,27 +378,92 @@ def procesar_chat(request):
         words = _normalize_message(message).split()
         search_terms = [w for w in words if w not in stop_words and len(w) > 2]
 
+        # Map normalized terms to category keys for direct category search
+        cat_key_map = {val: val for val, _ in CATEGORIAS}
+        # Also map display labels (lowercase, normalized) to keys
+        cat_label_map = {_normalize_message(label): val for val, label in CATEGORIAS}
+
         if search_terms:
-            # Try each term until we find results
-            products = []
+            # Check if the term matches a category directly
+            category_match = None
             for term in search_terms:
-                products = _search_products(term)
-                if products:
+                if term in cat_key_map:
+                    category_match = cat_key_map[term]
                     break
-            response = _format_product(products)
-        else:
-            # No specific search term — show product categories from DB
-            categories = Producto.objects.filter(
-                esta_activo=True, cantidad_stock__gt=0
-            ).values_list('categoria', flat=True).distinct().order_by('categoria')
-            cat_names = [dict(CATEGORIAS).get(c, c) for c in categories]
-            if cat_names:
-                cat_list = '\n'.join(f'• {name}' for name in cat_names)
-                response = (
-                    f'💊 **Categorías disponibles en nuestra tienda:**\n\n'
-                    f'{cat_list}\n\n'
-                    f'Escribe lo que buscas, por ejemplo: "precio de vacuna" o "alimento para perro".'
+                if term in cat_label_map:
+                    category_match = cat_label_map[term]
+                    break
+
+            if category_match:
+                # Show ALL products in that category
+                cat_products = list(
+                    Producto.objects.filter(
+                        esta_activo=True, cantidad_stock__gt=0, categoria=category_match
+                    ).order_by('nombre')
                 )
+                cat_name = dict(CATEGORIAS).get(category_match, category_match)
+                if cat_products:
+                    emoji_map = {
+                        'vacunas': '💉', 'medicamentos': '💊', 'alimentos': '🍖',
+                        'insumos': '🩺', 'higiene': '🛁', 'servicios': '🏥', 'otros': '🔧',
+                    }
+                    emoji = emoji_map.get(category_match, '📦')
+                    product_lines = '\n'.join(
+                        f'  • {p.nombre} — ${p.precio:,.0f}'
+                        for p in cat_products
+                    )
+                    response = (
+                        f'{emoji} **{cat_name}** ({len(cat_products)} producto{"s" if len(cat_products) > 1 else ""}):\n\n'
+                        f'{product_lines}\n\n'
+                        f'¿Te interesa alguno? 😊'
+                    )
+                else:
+                    response = f'No tenemos productos en **{cat_name}** en este momento.'
+            else:
+                # General keyword search
+                products = []
+                for term in search_terms:
+                    products = _search_products(term)
+                    if products:
+                        break
+                response = _format_product(products)
+        else:
+            # No specific search term — show products grouped by category
+            cat_labels = dict(CATEGORIAS)
+            categories_with_stock = (
+                Producto.objects
+                .filter(esta_activo=True, cantidad_stock__gt=0)
+                .values_list('categoria', flat=True)
+                .distinct()
+                .order_by('categoria')
+            )
+            if categories_with_stock:
+                lines = ['💊 **Productos disponibles en nuestra tienda:**\n']
+                for cat_key in categories_with_stock:
+                    cat_name = cat_labels.get(cat_key, cat_key)
+                    products_in_cat = list(
+                        Producto.objects.filter(
+                            esta_activo=True, cantidad_stock__gt=0, categoria=cat_key
+                        ).order_by('nombre')[:5]
+                    )
+                    product_lines = '\n'.join(
+                        f'  • {p.nombre} — ${p.precio:,.0f}'
+                        for p in products_in_cat
+                    )
+                    total_in_cat = Producto.objects.filter(
+                        esta_activo=True, cantidad_stock__gt=0, categoria=cat_key
+                    ).count()
+                    more = f'  … y {total_in_cat - 5} más' if total_in_cat > 5 else ''
+                    emoji_map = {
+                        'vacunas': '💉', 'medicamentos': '💊', 'alimentos': '🍖',
+                        'insumos': '🩺', 'higiene': '🛁', 'servicios': '🏥', 'otros': '🔧',
+                    }
+                    emoji = emoji_map.get(cat_key, '📦')
+                    lines.append(f'{emoji} **{cat_name}:**\n{product_lines}{more}')
+                    lines.append('')
+
+                lines.append('¿Buscas algo específico? Escribe el nombre, por ejemplo: "shampoo" o "concentrado". 😊')
+                response = '\n'.join(lines)
             else:
                 response = STATIC_RESPONSES['no_productos']
         quick_replies = ['📅 Citas', '📍 Ubicación', '🚨 Urgencias']

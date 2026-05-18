@@ -396,7 +396,7 @@ def checkout(request):
         if domiciliario:
             notify(
                 domiciliario,
-                f"📦 ¡Nuevo pedido asignado! Entrega pendiente en {direccion} — Total: ${pedido.total():,.0f} (Pago Contra Entrega).",
+                f"📦 ¡Nuevo pedido asignado! Entrega pendiente en {direccion} — Total: ${pedido.total:,.0f} (Pago Contra Entrega).",
                 tipo='pedido',
                 url=f'/entregas/pedido/{pedido.pk}/',
             )
