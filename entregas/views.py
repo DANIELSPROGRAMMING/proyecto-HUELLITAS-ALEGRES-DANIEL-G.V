@@ -16,6 +16,7 @@ from usuarios.decorators import role_required
 from .models import Pedido, ESTADO_CHOICES
 from .forms import CambiarEstadoForm, EvidenciaForm, PedidoForm, PedidoItemFormSet, ReasignarDomiciliarioForm
 from productos.models import Producto, MovimientoInventario
+from notificaciones.helpers import notify, notify_role
 
 
 def asignar_domiciliario_disponible():
@@ -152,6 +153,14 @@ def cambiar_estado(request, pk):
 
     # Aplicar cambio de estado
     pedido.estado = nuevo_estado
+    if nuevo_estado == 'en_camino':
+        # Notificar al cliente que su pedido va en camino
+        notify(
+            pedido.cliente,
+            f"🚚 Tu pedido #{pedido.pk} va en camino hacia tu ubicación.",
+            tipo='pedido',
+            url=f'/entregas/pedido/{pedido.pk}/',
+        )
     if nuevo_estado == 'cancelado':
         pedido.incidente_notas = incidente_notas
         pedido.incidente_fecha = timezone.now()
@@ -160,6 +169,19 @@ def cambiar_estado(request, pk):
             pedido.domiciliario.is_disponible = False
             pedido.domiciliario.save(update_fields=['is_disponible'])
             messages.warning(request, f'{pedido.domiciliario.get_full_name() or pedido.domiciliario.email} marcado como No Disponible. Puede reincorporarlo desde la Torre de Control.')
+        # Notificar al cliente y al admin
+        notify(
+            pedido.cliente,
+            f"⚠️ Tu pedido #{pedido.pk} ha sido cancelado.",
+            tipo='pedido',
+            url=f'/entregas/pedido/{pedido.pk}/',
+        )
+        notify_role(
+            'Administrador',
+            f"⚠️ Pedido #{pedido.pk} cancelado por domiciliario.",
+            tipo='pedido',
+            url=f'/entregas/pedido/{pedido.pk}/',
+        )
     if nuevo_estado == 'entregado':
         pedido.fecha_entrega = timezone.now()
         # Descontar stock del producto de cada item
@@ -174,6 +196,19 @@ def cambiar_estado(request, pk):
                 usuario=request.user,
                 motivo=f'Entrega Pedido #{pedido.pk}',
             )
+        # Notificar al cliente y al admin
+        notify(
+            pedido.cliente,
+            f"✅ Tu pedido #{pedido.pk} ha sido entregado exitosamente.",
+            tipo='pedido',
+            url=f'/entregas/pedido/{pedido.pk}/',
+        )
+        notify_role(
+            'Administrador',
+            f"📦 Pedido #{pedido.pk} entregado y confirmado por domiciliario.",
+            tipo='pedido',
+            url=f'/entregas/pedido/{pedido.pk}/',
+        )
     pedido.save()
 
     estado_labels = {'pendiente': 'Pendiente', 'en_camino': 'En Camino', 'entregado': 'Entregado', 'cancelado': 'Cancelado'}

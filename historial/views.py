@@ -12,6 +12,7 @@ from .models import HistorialClinico, Adjunto
 from .forms import HistorialClinicoForm, AtenderCitaForm, AdjuntoForm
 from agenda.models import Cita, Disponibilidad
 from mascotas.models import Mascota
+from notificaciones.helpers import notify
 
 
 @login_required(login_url='/usuarios/login/')
@@ -188,6 +189,13 @@ def atender_cita(request, cita_pk):
                     cita_locked.estado = 'Atendida'
                     cita_locked.save()
 
+                # Notificar al cliente que su cita fue atendida
+                notify(
+                    cita_locked.mascota.propietario,
+                    f"🩺 La cita de {cita_locked.mascota.nombre} ha sido atendida. Puedes consultar el historial clínico.",
+                    tipo='cita',
+                    url=f'/historial/{cita_locked.mascota.pk}/',
+                )
                 messages.success(request, 'Cita atendida e historial creado exitosamente.')
                 return redirect('historial:detalle', pk=historial.pk)
             except Exception as e:

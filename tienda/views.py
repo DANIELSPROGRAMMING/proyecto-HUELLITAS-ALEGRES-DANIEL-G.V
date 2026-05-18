@@ -11,6 +11,7 @@ from productos.models import Producto, CATEGORIAS
 from entregas.models import Pedido, PedidoItem
 from usuarios.decorators import role_required
 from .models import Carrito, CarritoItem
+from notificaciones.helpers import notify, notify_role
 
 
 # ============================================================
@@ -389,6 +390,22 @@ def checkout(request):
                     producto=producto,
                     cantidad=item_data['quantity'],
                 )
+
+        # Notificar al domiciliario asignado
+        if domiciliario:
+            notify(
+                domiciliario,
+                f"📦 ¡Nuevo pedido asignado! Entrega pendiente en {direccion} — Total: ${pedido.total():,.0f} (Pago Contra Entrega).",
+                tipo='pedido',
+                url=f'/entregas/pedido/{pedido.pk}/',
+            )
+        # Notificar al administrador
+        notify_role(
+            'Administrador',
+            f"💰 Nueva orden #{pedido.pk} registrada.{' Sin domiciliario disponible.' if not domiciliario else ''}",
+            tipo='pedido',
+            url=f'/entregas/pedido/{pedido.pk}/',
+        )
 
         # Clear both session and DB cart
         request.session['cart'] = {}

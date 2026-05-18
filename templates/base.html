@@ -169,6 +169,9 @@
 
 <body class="bg-background text-on-surface font-body-md antialiased min-h-screen flex flex-col">
 
+{# ── CSRF token para peticiones AJAX (notificaciones, chatbot) ── #}
+<div class="hidden">{% csrf_token %}</div>
+
 {# ─────────────────── NAVBAR ─────────────────── #}
 <nav class="sticky top-0 z-50 bg-surface-container-low border-b border-outline-variant/30 shadow-sm">
     <div class="max-w-[1440px] mx-auto flex items-center justify-between px-4 md:px-8 py-3">
@@ -185,6 +188,45 @@
                 <span class="material-symbols-outlined text-on-surface-variant text-[22px] dark:hidden">dark_mode</span>
                 <span class="material-symbols-outlined text-on-surface-variant text-[22px] hidden dark:inline">light_mode</span>
             </button>
+            {# ── Notification Bell ── #}
+            {% if user.is_authenticated %}
+            <div class="relative" x-data="{ bellOpen: false }">
+                <button @click="bellOpen = !bellOpen" class="relative p-2 rounded-lg hover:bg-surface-container-high transition-colors" title="Notificaciones" aria-label="Ver notificaciones">
+                    <span class="material-symbols-outlined text-on-surface-variant text-[22px]">notifications</span>
+                    {% if notificaciones_count %}
+                    <span class="absolute top-0.5 right-0.5 w-5 h-5 bg-error text-on-error text-[10px] font-bold rounded-full flex items-center justify-center leading-none">{{ notificaciones_count }}</span>
+                    {% endif %}
+                </button>
+                <div x-show="bellOpen" @click.outside="bellOpen = false" x-cloak x-transition class="absolute right-0 mt-2 w-80 max-h-[28rem] overflow-y-auto bg-surface-container-lowest rounded-xl shadow-lg border border-outline-variant/20 z-50" style="display: none;">
+                    <div class="sticky top-0 bg-surface-container-lowest border-b border-outline-variant/20 px-4 py-3 flex items-center justify-between">
+                        <span class="font-label-md text-label-md text-on-surface">Notificaciones</span>
+                        {% if notificaciones_count %}
+                        <button @click="fetch('{% url "notificaciones:marcar_todos_leido" %}', {method:'POST', headers:{'X-CSRFToken': document.querySelector('[name=csrfmiddlewaretoken]')?.value||''}}).then(()=>location.reload())" class="text-caption text-primary hover:underline">Marcar todo leído</button>
+                        {% endif %}
+                    </div>
+                    {% if notificaciones_no_leidas %}
+                    {% for notif in notificaciones_no_leidas %}
+                    <a href="{{ notif.url|default:'#' }}" class="flex items-start gap-3 px-4 py-3 hover:bg-surface-container transition-colors no-underline group" onclick="fetch('{% url 'notificaciones:marcar_leido' notif.pk %}', {method:'POST', headers:{'X-CSRFToken': document.querySelector('[name=csrfmiddlewaretoken]')?.value||''}})">
+                        <span class="material-symbols-outlined text-[20px] mt-0.5 flex-shrink-0
+                            {% if notif.tipo == 'cita' %}text-primary{% elif notif.tipo == 'pedido' %}text-tertiary{% elif notif.tipo == 'stock' %}text-error{% else %}text-on-surface-variant{% endif %}">
+                            {% if notif.tipo == 'cita' %}event{% elif notif.tipo == 'pedido' %}local_shipping{% elif notif.tipo == 'stock' %}inventory_2{% else %}info{% endif %}
+                        </span>
+                        <div class="flex-1 min-w-0">
+                            <p class="text-[13px] text-on-surface leading-snug group-hover:text-primary transition-colors">{{ notif.mensaje|truncatewords:15 }}</p>
+                            <p class="text-[11px] text-on-surface-variant mt-0.5">{{ notif.fecha_creacion|date:"d/m/Y H:i" }}</p>
+                        </div>
+                        <span class="w-2 h-2 rounded-full bg-primary flex-shrink-0 mt-1.5"></span>
+                    </a>
+                    {% endfor %}
+                    {% else %}
+                    <div class="px-4 py-8 text-center">
+                        <span class="material-symbols-outlined text-[40px] text-on-surface-variant/30">notifications_paused</span>
+                        <p class="text-on-surface-variant text-[13px] mt-2">No tienes notificaciones nuevas</p>
+                    </div>
+                    {% endif %}
+                </div>
+            </div>
+            {% endif %}
             {% if user.is_authenticated %}
             <div class="relative" x-data="{ open: false }">
                 <button @click="open = !open" class="flex items-center gap-2 hover:bg-surface-container-high rounded-full p-1 pr-3 transition-all border border-transparent hover:border-outline-variant/30">

@@ -8,6 +8,7 @@ from django.core.exceptions import PermissionDenied
 from usuarios.decorators import role_required
 from .models import Producto, MovimientoInventario, CATEGORIAS
 from .forms import ProductoForm, MovimientoInventarioForm
+from notificaciones.helpers import notify_role
 
 
 @role_required('Veterinario', 'Administrador')
@@ -96,6 +97,14 @@ def entrada_inventario(request):
         producto = mov.producto
         producto.cantidad_stock += mov.cantidad
         producto.save(update_fields=['cantidad_stock'])
+        # Alerta de stock bajo si el producto sigue por debajo del mínimo
+        if producto.cantidad_stock <= producto.stock_minimo:
+            notify_role(
+                'Administrador',
+                f"🚨 Alerta de Inventario: '{producto.nombre}' tiene {producto.cantidad_stock} unidades (mínimo: {producto.stock_minimo}). ¡Reabastecer!",
+                tipo='stock',
+                url=f'/productos/producto/{producto.pk}/',
+            )
         messages.success(request, f'Entrada de {mov.cantidad} unidades de "{producto.nombre}" registrada.')
         return redirect('productos:lista')
     return render(request, 'productos/movimiento_form.html', {

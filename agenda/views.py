@@ -8,6 +8,7 @@ from django.db.models import ProtectedError
 from usuarios.decorators import role_required
 from .models import Disponibilidad, Cita
 from .forms import DisponibilidadForm, CitaForm, SolicitarCitaForm, ReprogramarCitaForm
+from notificaciones.helpers import notify
 
 
 @login_required(login_url='/usuarios/login/')
@@ -240,6 +241,13 @@ def solicitar_cita(request):
             cita = form.save(commit=False)
             cita.estado = 'Programada'
             cita.save()
+            # Notificar al veterinario asignado
+            notify(
+                cita.disponibilidad.veterinario,
+                f"📅 El cliente {request.user.get_full_name() or request.user.username} ha agendado una cita para {cita.mascota.nombre} el {cita.disponibilidad.fecha.strftime('%d/%m')} a las {cita.disponibilidad.hora_inicio.strftime('%H:%M')}.",
+                tipo='cita',
+                url=f'/agenda/citas/',
+            )
             # HU#5: Send confirmation email
             from usuarios.email_utils import send_cita_confirmation
             send_cita_confirmation(cita, request.user.email)
@@ -314,6 +322,22 @@ def eliminar_cita(request, pk):
         cita.estado = 'Cancelada'
         cita.motivo_cancelacion = motivo
         cita.save()
+        # Notificar al veterinario si el que cancela es el cliente
+        if request.user.rol.nombre == 'Cliente':
+            notify(
+                cita.disponibilidad.veterinario,
+                f"❌ La cita de {cita.mascota.nombre} para el {cita.disponibilidad.fecha.strftime('%d/%m')} a las {cita.disponibilidad.hora_inicio.strftime('%H:%M')} ha sido cancelada por el cliente.",
+                tipo='cita',
+                url='/agenda/citas/',
+            )
+        elif request.user.rol.nombre in ('Veterinario', 'Administrador'):
+            # Notificar al cliente
+            notify(
+                cita.mascota.propietario,
+                f"❌ Tu cita para {cita.mascota.nombre} del {cita.disponibilidad.fecha.strftime('%d/%m')} ha sido cancelada.",
+                tipo='cita',
+                url='/agenda/citas/',
+            )
         messages.success(request, 'Cita cancelada exitosamente.')
         return redirect('agenda:lista_citas')
     return render(request, 'agenda/cita_cancel.html', {'cita': cita})
@@ -358,6 +382,13 @@ def reprogramar_cita(request, pk):
                 disponibilidad=nueva_disponibilidad,
                 estado='Programada',
                 motivo=nuevo_motivo,
+            )
+            # Notificar al veterinario de la nueva cita
+            notify(
+                nueva_cita.disponibilidad.veterinario,
+                f"🔄 Cita reprogramada: {nueva_cita.mascota.nombre} ahora el {nueva_cita.disponibilidad.fecha.strftime('%d/%m')} a las {nueva_cita.disponibilidad.hora_inicio.strftime('%H:%M')}.",
+                tipo='cita',
+                url='/agenda/citas/',
             )
 
             messages.success(

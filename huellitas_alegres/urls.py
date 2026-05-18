@@ -29,6 +29,7 @@ urlpatterns = [
     path('tienda/', include(('tienda.urls', 'tienda'), namespace='tienda')),
     path('proveedores/', include(('proveedores.urls', 'proveedores'), namespace='proveedores')),
     path('chatbot/', include(('chatbot.urls', 'chatbot'), namespace='chatbot')),
+    path('notificaciones/', include(('notificaciones.urls', 'notificaciones'), namespace='notificaciones')),
 ]
 
 if settings.DEBUG:
