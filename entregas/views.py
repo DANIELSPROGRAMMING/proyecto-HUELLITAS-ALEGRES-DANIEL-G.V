@@ -42,6 +42,8 @@ def dashboard(request):
     Admin ve todos, Domiciliario ve solo los suyos."""
     if request.user.rol.nombre == 'Cliente':
         raise PermissionDenied
+    if request.user.rol.nombre not in ('Administrador', 'Domiciliario'):
+        raise PermissionDenied
 
     if request.user.rol.nombre == 'Administrador':
         pedidos = Pedido.objects.select_related('cliente', 'domiciliario').prefetch_related('items__producto')

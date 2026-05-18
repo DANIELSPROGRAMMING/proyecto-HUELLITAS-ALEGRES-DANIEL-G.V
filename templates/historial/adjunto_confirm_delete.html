@@ -1,4 +1,5 @@
 {% extends 'base.html' %}
+{% load historial_filters %}
 
 {% block content %}
 <div class="max-w-lg mx-auto">
@@ -9,7 +10,7 @@
             </h2>
         </div>
         <div class="p-6">
-            <p class="font-body-md text-body-md text-on-surface mb-4">¿Está seguro de que desea eliminar el archivo <strong>"{{ adjunto.archivo.name.split|last }}"</strong>?</p>
+            <p class="font-body-md text-body-md text-on-surface mb-4">¿Está seguro de que desea eliminar el archivo <strong>"{{ adjunto.archivo.name|last_path }}"</strong>?</p>
             <p class="font-caption text-caption text-on-surface-variant mb-6">Tipo: {{ adjunto.get_tipo_display }} | Subido: {{ adjunto.fecha_subida|date:"d/m/Y H:i" }}</p>
             {% if adjunto.descripcion %}
             <p class="font-body-md text-body-md text-on-surface mb-6"><strong>Descripción:</strong> {{ adjunto.descripcion }}</p>

@@ -17,10 +17,10 @@ def dashboard_vet(request):
     if request.user.rol.nombre not in ('Veterinario', 'Administrador'):
         raise PermissionDenied
     if request.user.rol.nombre == 'Veterinario':
-        disponibilidades = Disponibilidad.objects.filter(veterinario=request.user)
+        disponibilidades = Disponibilidad.objects.filter(veterinario=request.user).select_related('veterinario').prefetch_related('citas')
         citas = Cita.objects.filter(disponibilidad__veterinario=request.user)
     else:  # Administrador
-        disponibilidades = Disponibilidad.objects.all()
+        disponibilidades = Disponibilidad.objects.all().select_related('veterinario').prefetch_related('citas')
         citas = Cita.objects.all()
     citas = citas.select_related('mascota', 'disponibilidad', 'disponibilidad__veterinario')
     disponibilidad_paginator = Paginator(disponibilidades, 10)
@@ -47,9 +47,9 @@ def lista_disponibilidades(request):
     if request.user.rol.nombre not in ('Veterinario', 'Administrador'):
         raise PermissionDenied
     if request.user.rol.nombre == 'Veterinario':
-        qs = Disponibilidad.objects.filter(veterinario=request.user)
+        qs = Disponibilidad.objects.filter(veterinario=request.user).prefetch_related('citas')
     else:  # Administrador
-        qs = Disponibilidad.objects.all()
+        qs = Disponibilidad.objects.all().prefetch_related('citas')
     paginator = Paginator(qs, 10)
     page = request.GET.get('page', 1)
     try:

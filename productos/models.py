@@ -102,6 +102,7 @@ class Producto(models.Model):
         ordering = ['nombre']
         verbose_name = 'Producto'
         verbose_name_plural = 'Productos'
+        base_manager_name = 'all_objects'
 
     def __str__(self):
         return self.nombre

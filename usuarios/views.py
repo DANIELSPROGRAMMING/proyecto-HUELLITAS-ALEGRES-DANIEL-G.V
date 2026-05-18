@@ -176,10 +176,13 @@ def registro_usuario(request):
                 contador += 1
             
             # Crear el usuario usando el sistema de autenticación de Django
+            # Asignar rol Cliente por defecto (campo obligatorio)
+            rol_cliente = Rol.objects.get(nombre='Cliente')
             usuario = Usuario.objects.create_user(
                 username=username,
                 email=email,
-                password=password
+                password=password,
+                rol=rol_cliente
             )
             
             # PASO 5: Respuesta exitosa del servicio web

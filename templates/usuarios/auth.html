@@ -350,7 +350,7 @@
             submitBtn.disabled = true;
             
             try {
-                const response = await fetch('/usuarios/login/', {
+                const response = await fetch('/usuarios/api/login/', {
                     method: 'POST',
                     headers: {
                         'Content-Type': 'application/json',
@@ -367,7 +367,7 @@
                 if (data.success) {
                     showMessage(data.message, 'success');
                     setTimeout(() => {
-                        window.location.href = data.redirect_url || '/productos/';
+                        window.location.href = data.redirect_url || '/inicio/';
                     }, 1500);
                 } else {
                     showMessage(data.message, 'error');
@@ -403,7 +403,7 @@
             submitBtn.disabled = true;
             
             try {
-                const response = await fetch('/usuarios/registro/', {
+                const response = await fetch('/usuarios/api/registro/', {
                     method: 'POST',
                     headers: {
                         'Content-Type': 'application/json',

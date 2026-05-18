@@ -1,7 +1,7 @@
 from django.shortcuts import render, redirect, get_object_or_404
 from django.contrib.auth.decorators import login_required
 from django.contrib import messages
-from django.db.models import Q
+from django.db.models import Q, ProtectedError
 from django.core.paginator import Paginator, EmptyPage, PageNotAnInteger
 from usuarios.decorators import role_required
 from .models import Mascota, ESPECIE_CHOICES
@@ -68,10 +68,14 @@ def crear_mascota(request):
         form = MascotaForm(request.POST, request.FILES)
         if form.is_valid():
             mascota = form.save(commit=False)
-            # Para rol Cliente, siempre forzar propietario a request.user
+            # Asignar propietario: Cliente siempre es el propio usuario;
+            # Vet/Admin pueden crear mascotas para otros clientes
             if request.user.rol.nombre == 'Cliente':
                 mascota.propietario = request.user
-            else:
+            # Vet y Admin: si el formulario no incluye propietario (excluido),
+            # se asigna al usuario actual como propietario temporal.
+            # El admin puede reasignar luego desde el panel de administración.
+            elif not getattr(mascota, 'propietario', None):
                 mascota.propietario = request.user
             mascota.save()
             messages.success(request, 'Mascota creada exitosamente.')
@@ -110,9 +114,13 @@ def eliminar_mascota(request, pk):
         if mascota.propietario != request.user:
             raise PermissionDenied
     if request.method == 'POST':
-        mascota.delete()
-        messages.success(request, 'Mascota eliminada exitosamente.')
-        return redirect('mascotas:lista')
+        try:
+            mascota.delete()
+            messages.success(request, 'Mascota eliminada exitosamente.')
+            return redirect('mascotas:lista')
+        except ProtectedError:
+            messages.error(request, 'No se puede eliminar esta mascota porque tiene citas o historiales clínicos asociados. Desactive la mascota o elimine los registros relacionados primero.')
+            return redirect('mascotas:lista')
     return render(request, 'mascotas/mascota_confirm_delete.html', {'mascota': mascota})
 
 

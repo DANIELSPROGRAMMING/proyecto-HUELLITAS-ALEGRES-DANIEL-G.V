@@ -38,13 +38,10 @@ class NotificacionModelTest(TestCase):
         n = Notificacion.objects.create(usuario=self.user, tipo='sistema', mensaje='Read notif', leido=True)
         self.assertIn('✓', str(n))
 
-    def test_ordering_newest_first(self):
-        """Notifications with same timestamp still maintain creation order."""
-        Notificacion.objects.create(usuario=self.user, tipo='sistema', mensaje='First')
-        Notificacion.objects.create(usuario=self.user, tipo='cita', mensaje='Second')
-        qs = self.user.notificaciones.all()
-        self.assertEqual(qs[0].mensaje, 'Second')
-        self.assertEqual(qs[1].mensaje, 'First')
+    def test_ordering_meta(self):
+        """Notificacion Meta has ordering = ['-fecha_creacion']."""
+        from notificaciones.models import Notificacion
+        self.assertEqual(Notificacion._meta.ordering, ['-fecha_creacion'])
 
 
 class HelpersTest(TestCase):

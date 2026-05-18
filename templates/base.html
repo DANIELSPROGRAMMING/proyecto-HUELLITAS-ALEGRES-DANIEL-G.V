@@ -238,7 +238,7 @@
                     </div>
                     {% endif %}
                     <span class="font-label-md text-label-md text-on-surface hidden md:inline">{{ user.get_full_name|default:user.email }}</span>
-                    <span class="text-caption text-secondary bg-surface-container px-2 py-0.5 rounded-full hidden md:inline">{{ user.rol.nombre }}</span>
+                    <span class="text-caption text-secondary bg-surface-container px-2 py-0.5 rounded-full hidden md:inline">{{ user.rol.nombre|default:"Sin rol" }}</span>
                     <span class="material-symbols-outlined text-on-surface-variant text-[20px]">expand_more</span>
                 </button>
                 <div x-show="open" @click.outside="open = false" x-cloak class="absolute right-0 mt-2 w-56 bg-surface-container-lowest rounded-xl shadow-lg border border-outline-variant/20 py-2 z-50" style="display: none;">
