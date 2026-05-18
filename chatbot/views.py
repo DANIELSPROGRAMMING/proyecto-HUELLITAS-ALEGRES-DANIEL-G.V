@@ -122,6 +122,7 @@ KEYWORD_MAP = {
     # Products & prices
     'producto': ['precio', 'precios', 'vale', 'cuesta', 'costo', 'cuanto',
                  'valor', 'lista', 'catalogo', 'tienda', 'comprar',
+                 'producto', 'productos',
                  'vacuna', 'medicamento', 'alimento', 'comida', 'pipeta',
                  'desparasitar', 'antipulgas', 'antibiotico', 'pastilla',
                  'crema', 'shampoo', 'collar', 'juguete', 'arena',
@@ -369,7 +370,10 @@ def procesar_chat(request):
             response = STATIC_RESPONSES['bienvenida']
 
     elif intent == 'producto':
-        # Normalize and extract search terms
+        # Three-tier product flow:
+        # 1. No search terms → show categories with product counts (no prices)
+        # 2. Category name → list product names (no prices)
+        # 3. Product name / "precio de X" → show price and stock details
         stop_words = {'precio', 'precios', 'vale', 'cuesta', 'costo', 'cuanto',
                        'valor', 'lista', 'catalogo', 'tienda', 'comprar', 'del', 'de',
                        'la', 'el', 'las', 'los', 'un', 'una', 'por', 'favor',
@@ -380,11 +384,15 @@ def procesar_chat(request):
 
         # Map normalized terms to category keys for direct category search
         cat_key_map = {val: val for val, _ in CATEGORIAS}
-        # Also map display labels (lowercase, normalized) to keys
         cat_label_map = {_normalize_message(label): val for val, label in CATEGORIAS}
+        emoji_map = {
+            'vacunas': '💉', 'medicamentos': '💊', 'alimentos': '🍖',
+            'insumos': '🩺', 'higiene': '🛁', 'servicios': '🏥', 'otros': '🔧',
+        }
 
         if search_terms:
-            # Check if the term matches a category directly
+            # STEP 2 or 3: user typed something specific
+            # Check if the term matches a category → list product names (no prices)
             category_match = None
             for term in search_terms:
                 if term in cat_key_map:
@@ -395,7 +403,7 @@ def procesar_chat(request):
                     break
 
             if category_match:
-                # Show ALL products in that category
+                # STEP 2: Show product names in that category (no prices)
                 cat_products = list(
                     Producto.objects.filter(
                         esta_activo=True, cantidad_stock__gt=0, categoria=category_match
@@ -403,24 +411,20 @@ def procesar_chat(request):
                 )
                 cat_name = dict(CATEGORIAS).get(category_match, category_match)
                 if cat_products:
-                    emoji_map = {
-                        'vacunas': '💉', 'medicamentos': '💊', 'alimentos': '🍖',
-                        'insumos': '🩺', 'higiene': '🛁', 'servicios': '🏥', 'otros': '🔧',
-                    }
                     emoji = emoji_map.get(category_match, '📦')
                     product_lines = '\n'.join(
-                        f'  • {p.nombre} — ${p.precio:,.0f}'
+                        f'  • {p.nombre}'
                         for p in cat_products
                     )
                     response = (
                         f'{emoji} **{cat_name}** ({len(cat_products)} producto{"s" if len(cat_products) > 1 else ""}):\n\n'
                         f'{product_lines}\n\n'
-                        f'¿Te interesa alguno? 😊'
+                        f'Escribe "precio de" seguido del nombre para ver el precio. 😊'
                     )
                 else:
                     response = f'No tenemos productos en **{cat_name}** en este momento.'
             else:
-                # General keyword search
+                # STEP 3: General keyword search — show price and stock details
                 products = []
                 for term in search_terms:
                     products = _search_products(term)
@@ -428,7 +432,7 @@ def procesar_chat(request):
                         break
                 response = _format_product(products)
         else:
-            # No specific search term — show products grouped by category
+            # STEP 1: No specific search term — show categories with counts (no prices)
             cat_labels = dict(CATEGORIAS)
             categories_with_stock = (
                 Producto.objects
@@ -438,31 +442,16 @@ def procesar_chat(request):
                 .order_by('categoria')
             )
             if categories_with_stock:
-                lines = ['💊 **Productos disponibles en nuestra tienda:**\n']
+                lines = ['💊 **Categorías de nuestra tienda:**\n']
                 for cat_key in categories_with_stock:
                     cat_name = cat_labels.get(cat_key, cat_key)
-                    products_in_cat = list(
-                        Producto.objects.filter(
-                            esta_activo=True, cantidad_stock__gt=0, categoria=cat_key
-                        ).order_by('nombre')[:5]
-                    )
-                    product_lines = '\n'.join(
-                        f'  • {p.nombre} — ${p.precio:,.0f}'
-                        for p in products_in_cat
-                    )
-                    total_in_cat = Producto.objects.filter(
+                    count = Producto.objects.filter(
                         esta_activo=True, cantidad_stock__gt=0, categoria=cat_key
                     ).count()
-                    more = f'  … y {total_in_cat - 5} más' if total_in_cat > 5 else ''
-                    emoji_map = {
-                        'vacunas': '💉', 'medicamentos': '💊', 'alimentos': '🍖',
-                        'insumos': '🩺', 'higiene': '🛁', 'servicios': '🏥', 'otros': '🔧',
-                    }
                     emoji = emoji_map.get(cat_key, '📦')
-                    lines.append(f'{emoji} **{cat_name}:**\n{product_lines}{more}')
-                    lines.append('')
-
-                lines.append('¿Buscas algo específico? Escribe el nombre, por ejemplo: "shampoo" o "concentrado". 😊')
+                    lines.append(f'{emoji} **{cat_name}** — {count} producto{"s" if count != 1 else ""}')
+                lines.append('')
+                lines.append('Escribe el nombre de una categoría para ver los productos, o "precio de" seguido del nombre para ver el precio.')
                 response = '\n'.join(lines)
             else:
                 response = STATIC_RESPONSES['no_productos']

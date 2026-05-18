@@ -126,3 +126,46 @@ class ChatbotViewTests(TestCase):
         response, data = self._post('horario')
         self.assertIsInstance(data['quick_replies'], list)
         self.assertTrue(len(data['quick_replies']) > 0)
+
+    # ── Three-tier product flow tests ──
+
+    def test_product_tier1_categories_only(self):
+        """Step 1: 'productos' with no search terms shows categories with counts, no prices."""
+        from productos.models import Producto
+        # Seed test products so categories have stock
+        Producto.objects.create(nombre='Test Alimento', categoria='alimentos', precio=10000, cantidad_stock=50)
+        Producto.objects.create(nombre='Test Higiene', categoria='higiene', precio=15000, cantidad_stock=30)
+        response, data = self._post('productos')
+        self.assertEqual(response.status_code, 200)
+        # Should show category listing
+        self.assertIn('Categor', data['response'])
+        # Should NOT contain price format at this tier
+        self.assertNotIn('$', data['response'])
+        # Clean up
+        Producto.objects.filter(nombre__in=['Test Alimento', 'Test Higiene']).delete()
+
+    def test_product_tier2_category_names_no_prices(self):
+        """Step 2: Typing a category name lists product names without prices."""
+        from productos.models import Producto
+        Producto.objects.create(nombre='Concentrado Test', categoria='alimentos', precio=75000, cantidad_stock=20)
+        response, data = self._post('alimentos')
+        self.assertEqual(response.status_code, 200)
+        # Should show the product name
+        self.assertIn('Concentrado Test', data['response'])
+        # Should invite user to ask for price
+        self.assertIn('precio', data['response'].lower())
+        # Should NOT show $ at this tier
+        self.assertNotIn('$', data['response'])
+        # Clean up
+        Producto.objects.filter(nombre='Concentrado Test').delete()
+
+    def test_product_tier3_search_shows_prices(self):
+        """Step 3: Specific product search shows price details."""
+        from productos.models import Producto
+        Producto.objects.create(nombre='ShampooTestPrecio', categoria='higiene', precio=32000, cantidad_stock=10)
+        response, data = self._post('ShampooTestPrecio')
+        self.assertEqual(response.status_code, 200)
+        # Price search should show $ symbol
+        self.assertIn('$', data['response'])
+        # Clean up
+        Producto.objects.filter(nombre='ShampooTestPrecio').delete()
