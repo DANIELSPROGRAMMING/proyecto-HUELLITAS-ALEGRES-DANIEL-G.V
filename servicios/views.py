@@ -11,6 +11,41 @@ from .forms import ServicioForm
 
 
 @login_required(login_url='/usuarios/login/')
+def catalogo_servicios(request):
+    """Catálogo de servicios para Cliente — vista de tarjetas con opción de agendar.
+
+    Cualquier usuario autenticado puede ver los servicios.
+    Los servicios se muestran en tarjetas con imagen, nombre, duración y tarifa.
+    El botón 'Agendar' redirige al formulario de cita con el servicio pre-seleccionado.
+    """
+    qs = Servicio.objects.order_by('categoria', 'nombre')
+
+    search = request.GET.get('q', '').strip()
+    if search:
+        qs = qs.filter(
+            Q(nombre__icontains=search) | Q(descripcion__icontains=search)
+        )
+
+    categoria = request.GET.get('categoria', '').strip()
+    if categoria:
+        qs = qs.filter(categoria=categoria)
+
+    paginator = Paginator(qs, 9)  # 9 per page (3×3 grid)
+    page = request.GET.get('page', 1)
+    try:
+        page_obj = paginator.page(page)
+    except (PageNotAnInteger, EmptyPage):
+        page_obj = paginator.page(1)
+
+    return render(request, 'servicios/catalogo_servicios.html', {
+        'page_obj': page_obj,
+        'search': search,
+        'categoria': categoria,
+        'categorias': CATEGORIAS_SERVICIO,
+    })
+
+
+@login_required(login_url='/usuarios/login/')
 def lista_servicios(request):
     """Lista de servicios activos — cualquier usuario autenticado puede ver."""
     qs = Servicio.objects.order_by('nombre')

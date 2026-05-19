@@ -80,6 +80,17 @@
     <span class="material-symbols-outlined text-primary">calendar_add_on</span> Solicitar Cita
   </h1>
 
+  {% if servicio_nombre %}
+  {# Banner indicating service pre-selection from Servicios catalog #}
+  <div class="flex items-start gap-3 p-4 bg-primary-container/30 rounded-xl border border-primary/20 font-body-md text-body-md text-on-surface mb-4">
+    <span class="material-symbols-outlined text-primary flex-shrink-0 mt-0.5">content_paste</span>
+    <div>
+      <p>Agendando cita para: <strong>{{ servicio_nombre }}</strong></p>
+      <p class="mt-0.5 text-on-surface-variant font-caption text-caption">El motivo se ha pre-llenado automáticamente. Puedes editarlo si lo deseas.</p>
+    </div>
+  </div>
+  {% endif %}
+
   {% if sin_disponibilidad %}
   {# Warning: no availability — show upcoming dates as alternatives (CU#4 4.2, HU#5) #}
   <div class="flex items-start gap-3 p-4 bg-secondary-container/30 rounded-xl border border-secondary/20 font-body-md text-body-md text-on-surface mb-6">

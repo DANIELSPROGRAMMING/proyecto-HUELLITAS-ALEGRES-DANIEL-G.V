@@ -16,9 +16,18 @@ class ServicioForm(forms.ModelForm):
         help_text='Escriba el valor con o sin puntos. Ej: 85.000 o 85000',
     )
 
+    imagen = forms.ImageField(
+        required=False,
+        widget=forms.FileInput(attrs={
+            'class': 'form-control',
+            'accept': 'image/*',
+        }),
+        help_text='Imagen representativa del servicio (opcional). Máximo 5 MB.',
+    )
+
     class Meta:
         model = Servicio
-        fields = ['nombre', 'descripcion', 'categoria', 'tarifa', 'duracion_minutos']
+        fields = ['nombre', 'descripcion', 'imagen', 'categoria', 'tarifa', 'duracion_minutos']
         widgets = {
             'nombre': forms.TextInput(attrs={'class': 'form-control'}),
             'descripcion': forms.Textarea(attrs={'class': 'form-control', 'rows': 3}),

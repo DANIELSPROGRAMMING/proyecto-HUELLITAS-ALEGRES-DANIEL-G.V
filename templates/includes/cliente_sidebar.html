@@ -17,6 +17,11 @@
             <span class="material-symbols-outlined text-[20px] {% if '/tienda/' in request.path %}icon-fill{% endif %}">store</span>
             Tienda
         </a>
+        <a href="{% url 'servicios:catalogo' %}" class="flex items-center gap-3 px-3 py-2.5 rounded-lg transition-colors font-label-md text-label-md no-underline
+            {% if '/servicios/catalogo/' in request.path %}bg-primary-container text-on-primary-container font-bold{% else %}text-secondary hover:bg-surface-container-high{% endif %}">
+            <span class="material-symbols-outlined text-[20px] {% if '/servicios/catalogo/' in request.path %}icon-fill{% endif %}">content_paste</span>
+            Servicios
+        </a>
         <a href="{% url 'mascotas:lista' %}" class="flex items-center gap-3 px-3 py-2.5 rounded-lg transition-colors font-label-md text-label-md no-underline
             {% if '/mascotas/' in request.path %}bg-primary-container text-on-primary-container font-bold{% else %}text-secondary hover:bg-surface-container-high{% endif %}">
             <span class="material-symbols-outlined text-[20px] {% if '/mascotas/' in request.path %}icon-fill{% endif %}">pets</span>

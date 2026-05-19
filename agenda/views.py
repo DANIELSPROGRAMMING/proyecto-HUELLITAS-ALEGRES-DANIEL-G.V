@@ -235,6 +235,17 @@ def solicitar_cita(request):
     # HU#5: Optional vet filter from query param
     vet_filter = request.GET.get('vet') or (request.POST.get('veterinario') if request.method == 'POST' else None)
 
+    # Service pre-selection from query param ?servicio_id=X
+    servicio_id = request.GET.get('servicio_id')
+    servicio_nombre = None
+    if servicio_id:
+        try:
+            from servicios.models import Servicio
+            servicio = Servicio.objects.get(pk=int(servicio_id), esta_activo=True)
+            servicio_nombre = servicio.nombre
+        except (Servicio.DoesNotExist, ValueError, TypeError):
+            servicio_id = None
+
     if request.method == 'POST':
         form = SolicitarCitaForm(request.POST, user=request.user)
         if form.is_valid():
@@ -254,7 +265,7 @@ def solicitar_cita(request):
             messages.success(request, f'¡Cita solicitada exitosamente para {cita.mascota.nombre}! Se ha enviado una confirmación a su correo.')
             return redirect('agenda:lista_citas')
     else:
-        # Pre-populate vet filter if present in query string
+        # Pre-populate vet filter and/or servicio from query string
         initial = {}
         if vet_filter:
             try:
@@ -265,9 +276,15 @@ def solicitar_cita(request):
                     initial['veterinario'] = vet_obj
             except (ValueError, TypeError):
                 pass
+        # Pre-fill motivo with service name if coming from Servicios catalog
+        if servicio_nombre:
+            initial['motivo'] = servicio_nombre
         form = SolicitarCitaForm(user=request.user, initial=initial)
 
-    return render(request, 'agenda/solicitar_cita.html', {'form': form})
+    return render(request, 'agenda/solicitar_cita.html', {
+        'form': form,
+        'servicio_nombre': servicio_nombre,
+    })
 
 
 @login_required(login_url='/usuarios/login/')

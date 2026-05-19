@@ -25,7 +25,6 @@ CATEGORIAS = [
     ('alimentos', 'Alimentos'),
     ('insumos', 'Insumos médicos'),
     ('higiene', 'Higiene y cuidado'),
-    ('servicios', 'Servicios'),
     ('otros', 'Otros'),
 ]
 

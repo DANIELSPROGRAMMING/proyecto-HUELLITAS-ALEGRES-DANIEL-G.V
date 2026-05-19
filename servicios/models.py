@@ -3,6 +3,11 @@ from django.core.validators import MinValueValidator
 from django.core.exceptions import ValidationError
 
 
+def servicio_imagen_upload_path(instance, filename):
+    """Ruta: media/servicios/<servicio_pk>/<filename>"""
+    return f'servicios/{instance.pk or "nuevo"}/{filename}'
+
+
 CATEGORIAS_SERVICIO = [
     ('consulta', 'Consulta'),
     ('cirugia', 'Cirugía'),
@@ -27,6 +32,13 @@ class Servicio(models.Model):
 
     nombre = models.CharField(max_length=100, unique=True, verbose_name='Nombre')
     descripcion = models.TextField(blank=True, default='', verbose_name='Descripción')
+    imagen = models.ImageField(
+        upload_to=servicio_imagen_upload_path,
+        blank=True,
+        null=True,
+        verbose_name='Imagen del servicio',
+        help_text='Foto representativa del servicio. Opcional.',
+    )
     categoria = models.CharField(
         max_length=20,
         choices=CATEGORIAS_SERVICIO,

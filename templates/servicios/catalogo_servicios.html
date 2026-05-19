@@ -1,0 +1,137 @@
+{% extends 'base.html' %}
+{% load formato %}
+
+{% block title %}Servicios — Huellitas Alegres{% endblock %}
+
+{% block content %}
+<div class="max-w-6xl mx-auto">
+    {# Page Header #}
+    <div class="flex justify-between items-center mb-6">
+        <h1 class="font-headline-lg text-headline-lg text-on-surface flex items-center gap-3">
+            <span class="material-symbols-outlined text-primary">content_paste</span> Servicios
+        </h1>
+    </div>
+
+    {# Search and filter bar #}
+    <form method="get" class="tw-form mb-6">
+        <div class="flex flex-col sm:flex-row gap-3">
+            <div class="flex-1">
+                <input type="text" name="q" placeholder="Buscar servicio..." value="{{ search|default:'' }}" class="w-full px-4 py-2.5 bg-surface-container-low border border-outline-variant rounded-lg font-body-md text-body-md text-on-surface placeholder:text-on-surface-variant focus:outline-none focus:border-primary focus:ring-1 focus:ring-primary transition-colors">
+            </div>
+            <div class="sm:w-56">
+                <select name="categoria" class="w-full px-4 py-2.5 bg-surface-container-low border border-outline-variant rounded-lg font-body-md text-body-md text-on-surface focus:outline-none focus:border-primary focus:ring-1 focus:ring-primary transition-colors">
+                    <option value="">Todas las categorías</option>
+                    {% for value, label in categorias %}
+                    <option value="{{ value }}" {% if categoria == value %}selected{% endif %}>{{ label }}</option>
+                    {% endfor %}
+                </select>
+            </div>
+            <button type="submit" class="bg-primary text-on-primary font-label-md text-label-md rounded-lg px-4 py-2.5 hover:opacity-90 transition-opacity inline-flex items-center gap-1.5">
+                <span class="material-symbols-outlined text-[18px]">search</span> Buscar
+            </button>
+        </div>
+    </form>
+
+    {% if page_obj %}
+    {# Service card grid #}
+    <div class="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-3 gap-4">
+        {% for s in page_obj %}
+        <div class="bg-surface-container-lowest rounded-xl border border-outline-variant/10 shadow-md transition-all duration-300 ease-in-out overflow-hidden flex flex-col hover:scale-[1.02] hover:shadow-xl hover:-translate-y-0.5 hover:border-[#37563b]/40">
+            {# Service image or placeholder #}
+            {% if s.imagen %}
+            <img src="{{ s.imagen.url }}" alt="{{ s.nombre }}" class="w-full h-44 object-cover">
+            {% else %}
+            <div class="w-full h-44 bg-surface-container flex items-center justify-center">
+                {% if s.categoria == 'consulta' %}
+                <span class="material-symbols-outlined text-on-surface-variant text-[56px]" style="font-variation-settings: 'FILL' 0;">stethoscope</span>
+                {% elif s.categoria == 'cirugia' %}
+                <span class="material-symbols-outlined text-on-surface-variant text-[56px]" style="font-variation-settings: 'FILL' 0;">surgical</span>
+                {% elif s.categoria == 'estetica' %}
+                <span class="material-symbols-outlined text-on-surface-variant text-[56px]" style="font-variation-settings: 'FILL' 0;">cut</span>
+                {% elif s.categoria == 'vacunacion' %}
+                <span class="material-symbols-outlined text-on-surface-variant text-[56px]" style="font-variation-settings: 'FILL' 0;">vaccines</span>
+                {% elif s.categoria == 'laboratorio' %}
+                <span class="material-symbols-outlined text-on-surface-variant text-[56px]" style="font-variation-settings: 'FILL' 0;">biotech</span>
+                {% elif s.categoria == 'imagenes' %}
+                <span class="material-symbols-outlined text-on-surface-variant text-[56px]" style="font-variation-settings: 'FILL' 0;">radiology</span>
+                {% elif s.categoria == 'hospitalizacion' %}
+                <span class="material-symbols-outlined text-on-surface-variant text-[56px]" style="font-variation-settings: 'FILL' 0;">local_hospital</span>
+                {% else %}
+                <span class="material-symbols-outlined text-on-surface-variant text-[56px]" style="font-variation-settings: 'FILL' 0;">medical_services</span>
+                {% endif %}
+            </div>
+            {% endif %}
+
+            {# Service info #}
+            <div class="p-4 flex flex-col flex-1">
+                <h3 class="font-label-lg text-on-surface font-semibold">{{ s.nombre }}</h3>
+                <span class="inline-flex items-center gap-1 px-2 py-0.5 rounded-full bg-primary-container/30 text-primary font-caption text-caption mt-1 self-start">{{ s.get_categoria_display }}</span>
+
+                {% if s.descripcion %}
+                <p class="font-caption text-caption text-on-surface-variant mt-2 line-clamp-2 flex-1">{{ s.descripcion }}</p>
+                {% else %}
+                <div class="flex-1"></div>
+                {% endif %}
+
+                {# Price and duration #}
+                <div class="mt-3 flex justify-between items-center">
+                    <span class="font-headline-md text-headline-md text-primary">{{ s.tarifa|pesos }}</span>
+                    <span class="inline-flex items-center gap-1 font-caption text-caption text-on-surface-variant">
+                        <span class="material-symbols-outlined text-[16px]">schedule</span>
+                        {{ s.duracion_minutos }} min
+                    </span>
+                </div>
+
+                {# Book button — only for authenticated Cliente users #}
+                {% if user.is_authenticated and user.rol.nombre == 'Cliente' %}
+                <a href="{% url 'agenda:solicitar_cita' %}?servicio_id={{ s.pk }}"
+                   class="mt-3 w-full bg-primary text-on-primary font-label-md text-label-md rounded-lg px-4 py-2 hover:opacity-90 transition-opacity inline-flex items-center justify-center gap-1.5 no-underline">
+                    <span class="material-symbols-outlined text-[16px]">event_available</span> Agendar Servicio
+                </a>
+                {% elif user.is_authenticated %}
+                <span class="mt-3 w-full bg-surface-container-high text-on-surface-variant font-label-md text-label-md rounded-lg px-4 py-2 text-center block">
+                    Solo clientes pueden agendar
+                </span>
+                {% endif %}
+            </div>
+        </div>
+        {% endfor %}
+    </div>
+
+    {# Pagination #}
+    <nav class="flex items-center justify-center gap-2 mt-6 flex-wrap" aria-label="Paginación">
+        {% if page_obj.has_previous %}
+        <a href="?page={{ page_obj.previous_page_number }}{% if search %}&q={{ search }}{% endif %}{% if categoria %}&categoria={{ categoria }}{% endif %}" class="inline-flex items-center gap-1 px-3 py-2 bg-surface-container-lowest border border-outline-variant/30 rounded-lg font-label-md text-label-md text-on-surface hover:bg-surface-container-high transition-colors no-underline">
+            <span class="material-symbols-outlined text-[18px]">chevron_left</span> Anterior
+        </a>
+        {% else %}
+        <span class="inline-flex items-center gap-1 px-3 py-2 bg-surface-container text-on-surface-variant rounded-lg font-label-md text-label-md cursor-default">
+            <span class="material-symbols-outlined text-[18px]">chevron_left</span> Anterior
+        </span>
+        {% endif %}
+        {% for num in page_obj.paginator.page_range %}
+            {% if page_obj.number == num %}
+            <span class="flex items-center justify-center w-10 h-10 bg-primary text-on-primary rounded-lg font-label-md text-label-md">{{ num }}</span>
+            {% elif num >= page_obj.number|add:"-2" and num <= page_obj.number|add:"2" %}
+            <a href="?page={{ num }}{% if search %}&q={{ search }}{% endif %}{% if categoria %}&categoria={{ categoria }}{% endif %}" class="flex items-center justify-center w-10 h-10 bg-surface-container-lowest border border-outline-variant/30 rounded-lg font-label-md text-label-md text-on-surface hover:bg-surface-container-high transition-colors no-underline">{{ num }}</a>
+            {% endif %}
+        {% endfor %}
+        {% if page_obj.has_next %}
+        <a href="?page={{ page_obj.next_page_number }}{% if search %}&q={{ search }}{% endif %}{% if categoria %}&categoria={{ categoria }}{% endif %}" class="inline-flex items-center gap-1 px-3 py-2 bg-surface-container-lowest border border-outline-variant/30 rounded-lg font-label-md text-label-md text-on-surface hover:bg-surface-container-high transition-colors no-underline">
+            Siguiente <span class="material-symbols-outlined text-[18px]">chevron_right</span>
+        </a>
+        {% else %}
+        <span class="inline-flex items-center gap-1 px-3 py-2 bg-surface-container text-on-surface-variant rounded-lg font-label-md text-label-md cursor-default">
+            Siguiente <span class="material-symbols-outlined text-[18px]">chevron_right</span>
+        </span>
+        {% endif %}
+    </nav>
+    {% else %}
+    {# Empty state #}
+    <div class="flex items-center justify-center gap-3 p-8 bg-surface-container rounded-xl border border-outline-variant/20">
+        <span class="material-symbols-outlined text-on-surface-variant text-[32px]">search_off</span>
+        <p class="font-body-md text-body-md text-on-surface-variant">No se encontraron servicios.</p>
+    </div>
+    {% endif %}
+</div>
+{% endblock %}
