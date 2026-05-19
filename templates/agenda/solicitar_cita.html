@@ -164,6 +164,20 @@
           {% endif %}
         </div>
 
+        {# Servicio field — optional, auto-fills motivo on selection #}
+        <div class="mb-4">
+          <label for="{{ form.servicio.id_for_label }}">{{ form.servicio.label }}</label>
+          {{ form.servicio }}
+          {% if form.servicio.errors %}
+          <div class="mt-1">
+            {% for error in form.servicio.errors %}
+            <p class="text-error font-caption text-caption">{{ error }}</p>
+            {% endfor %}
+          </div>
+          {% endif %}
+          <p class="mt-1 font-caption text-caption text-on-surface-variant">Seleccione un servicio para pre-llenar el motivo de la consulta.</p>
+        </div>
+
         {# Veterinario filter — HU#5: lista de profesionales disponibles #}
         <div class="mb-4">
           <label for="{{ form.veterinario.id_for_label }}">{{ form.veterinario.label }}</label>
@@ -245,6 +259,43 @@ function filterByVet(vetId) {
     var select = document.getElementById('{{ form.veterinario.id_for_label }}');
     if (vetId && select) {
         select.value = vetId;
+    }
+})();
+
+/* Auto-fill motivo when a servicio is selected.
+   Maps servicio PK to nombre using the rendered <option> values. */
+(function() {
+    var servicioSelect = document.getElementById('id_servicio_select');
+    var motivoField = document.getElementById('{{ form.motivo.id_for_label }}');
+    if (!servicioSelect || !motivoField) return;
+
+    // Build PK→nombre map from the <option> elements
+    var servicioMap = {};
+    servicioSelect.querySelectorAll('option').forEach(function(opt) {
+        if (opt.value) {
+            servicioMap[opt.value] = opt.textContent.trim();
+        }
+    });
+
+    servicioSelect.addEventListener('change', function() {
+        var selected = servicioSelect.value;
+        if (selected && servicioMap[selected]) {
+            // Only auto-fill if motivo is empty or was auto-filled before
+            if (!motivoField.value.trim() || motivoField.dataset.autoFilled === 'true') {
+                motivoField.value = servicioMap[selected];
+                motivoField.dataset.autoFilled = 'true';
+            }
+        }
+    });
+
+    // Clear auto-fill flag when user manually edits motivo
+    motivoField.addEventListener('input', function() {
+        motivoField.dataset.autoFilled = 'false';
+    });
+
+    // If servicio is pre-selected from query param, trigger auto-fill
+    if (servicioSelect.value) {
+        servicioSelect.dispatchEvent(new Event('change'));
     }
 })();
 </script>

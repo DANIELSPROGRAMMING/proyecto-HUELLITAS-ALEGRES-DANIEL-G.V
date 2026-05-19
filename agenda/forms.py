@@ -126,6 +126,7 @@ class SolicitarCitaForm(forms.ModelForm):
     Filters mascota to request.user's own, disponibilidad to available slots.
     Includes optional veterinario filter — HU#5 criterion:
     «El sistema debe mostrar una lista de profesionales veterinarios disponibles».
+    Includes optional servicio selector — auto-fills motivo on selection.
     """
 
     veterinario = forms.ModelChoiceField(
@@ -135,10 +136,20 @@ class SolicitarCitaForm(forms.ModelForm):
         label='Veterinario (opcional)',
         widget=forms.Select(attrs={'class': 'form-control'}),
     )
+    servicio = forms.ModelChoiceField(
+        queryset=None,
+        required=False,
+        empty_label='— Seleccione un servicio (opcional) —',
+        label='Servicio',
+        widget=forms.Select(attrs={
+            'class': 'form-control',
+            'id': 'id_servicio_select',
+        }),
+    )
 
     class Meta:
         model = Cita
-        fields = ['mascota', 'veterinario', 'disponibilidad', 'motivo']
+        fields = ['mascota', 'servicio', 'veterinario', 'disponibilidad', 'motivo']
         widgets = {
             'motivo': forms.Textarea(attrs={
                 'class': 'form-control',
@@ -152,6 +163,12 @@ class SolicitarCitaForm(forms.ModelForm):
         # Filter mascota to user's own
         if user:
             self.fields['mascota'].queryset = Mascota.objects.filter(propietario=user).order_by('nombre')
+
+        # Servicio queryset — all active services ordered by category then name
+        from servicios.models import Servicio
+        self.fields['servicio'].queryset = Servicio.objects.filter(
+            esta_activo=True
+        ).order_by('categoria', 'nombre')
 
         # Veterinarios con disponibilidades futuras
         from django.utils import timezone as dj_tz
@@ -205,6 +222,12 @@ class SolicitarCitaForm(forms.ModelForm):
         # veterinario is not saved on the Cita model — it's derived from disponibilidad.veterinario
         # Remove it from cleaned_data before model validation
         cleaned_data.pop('veterinario', None)
+        # servicio is not a model field — remove before validation
+        # If a servicio was selected and motivo is empty, auto-fill motivo with servicio name
+        servicio = cleaned_data.pop('servicio', None)
+        motivo = cleaned_data.get('motivo', '')
+        if servicio and not motivo.strip():
+            cleaned_data['motivo'] = servicio.nombre
         return cleaned_data
 
 

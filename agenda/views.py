@@ -237,12 +237,13 @@ def solicitar_cita(request):
 
     # Service pre-selection from query param ?servicio_id=X
     servicio_id = request.GET.get('servicio_id')
+    servicio_seleccionado = None
     servicio_nombre = None
     if servicio_id:
         try:
             from servicios.models import Servicio
-            servicio = Servicio.objects.get(pk=int(servicio_id), esta_activo=True)
-            servicio_nombre = servicio.nombre
+            servicio_seleccionado = Servicio.objects.get(pk=int(servicio_id), esta_activo=True)
+            servicio_nombre = servicio_seleccionado.nombre
         except (Servicio.DoesNotExist, ValueError, TypeError):
             servicio_id = None
 
@@ -276,8 +277,9 @@ def solicitar_cita(request):
                     initial['veterinario'] = vet_obj
             except (ValueError, TypeError):
                 pass
-        # Pre-fill motivo with service name if coming from Servicios catalog
-        if servicio_nombre:
+        # Pre-fill servicio and/or motivo from query param
+        if servicio_seleccionado:
+            initial['servicio'] = servicio_seleccionado
             initial['motivo'] = servicio_nombre
         form = SolicitarCitaForm(user=request.user, initial=initial)
 
