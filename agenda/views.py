@@ -216,9 +216,9 @@ def solicitar_cita(request):
 
         from django.contrib.auth import get_user_model
         Usuario = get_user_model()
-        vets = Usuario.objects.filter(
-            pk__in=proximas_disponibilidades.values_list('veterinario_id', flat=True).distinct()
-        )
+        # Extract unique vet IDs from the already-evaluated queryset (distinct before slice!)
+        vet_ids = list(set(proximas_disponibilidades.values_list('veterinario_id', flat=True)))
+        vets = Usuario.objects.filter(pk__in=vet_ids)
 
         messages.warning(
             request,
@@ -239,13 +239,18 @@ def solicitar_cita(request):
     servicio_id = request.GET.get('servicio_id')
     servicio_seleccionado = None
     servicio_nombre = None
-    if servicio_id:
+    if servicio_id and servicio_id.isdigit():
         try:
             from servicios.models import Servicio
-            servicio_seleccionado = Servicio.objects.get(pk=int(servicio_id), esta_activo=True)
-            servicio_nombre = servicio_seleccionado.nombre
-        except (Servicio.DoesNotExist, ValueError, TypeError):
+            servicio_seleccionado = Servicio.objects.filter(pk=int(servicio_id), esta_activo=True).first()
+            if servicio_seleccionado:
+                servicio_nombre = servicio_seleccionado.nombre
+            else:
+                servicio_id = None
+        except (ValueError, TypeError):
             servicio_id = None
+    else:
+        servicio_id = None
 
     if request.method == 'POST':
         form = SolicitarCitaForm(request.POST, user=request.user)

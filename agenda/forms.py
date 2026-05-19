@@ -149,7 +149,7 @@ class SolicitarCitaForm(forms.ModelForm):
 
     class Meta:
         model = Cita
-        fields = ['mascota', 'servicio', 'veterinario', 'disponibilidad', 'motivo']
+        fields = ['mascota', 'veterinario', 'disponibilidad', 'motivo']
         widgets = {
             'motivo': forms.Textarea(attrs={
                 'class': 'form-control',
@@ -164,11 +164,9 @@ class SolicitarCitaForm(forms.ModelForm):
         if user:
             self.fields['mascota'].queryset = Mascota.objects.filter(propietario=user).order_by('nombre')
 
-        # Servicio queryset — all active services ordered by category then name
+        # Servicio queryset — all active services (manager filters esta_activo=True)
         from servicios.models import Servicio
-        self.fields['servicio'].queryset = Servicio.objects.filter(
-            esta_activo=True
-        ).order_by('categoria', 'nombre')
+        self.fields['servicio'].queryset = Servicio.objects.order_by('categoria', 'nombre')
 
         # Veterinarios con disponibilidades futuras
         from django.utils import timezone as dj_tz
