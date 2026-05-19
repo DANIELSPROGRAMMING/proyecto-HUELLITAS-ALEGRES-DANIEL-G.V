@@ -79,7 +79,7 @@ def lista_servicios(request):
 @role_required('Administrador')
 def crear_servicio(request):
     """Crear nuevo servicio — solo Administrador."""
-    form = ServicioForm(request.POST or None)
+    form = ServicioForm(request.POST or None, request.FILES or None)
     if request.method == 'POST' and form.is_valid():
         form.save()
         messages.success(request, 'Servicio creado exitosamente.')
@@ -91,7 +91,7 @@ def crear_servicio(request):
 def editar_servicio(request, pk):
     """Editar servicio existente — solo Administrador."""
     servicio = get_object_or_404(Servicio.all_objects, pk=pk)
-    form = ServicioForm(request.POST or None, instance=servicio)
+    form = ServicioForm(request.POST or None, request.FILES or None, instance=servicio)
     if request.method == 'POST' and form.is_valid():
         form.save()
         messages.success(request, 'Servicio actualizado exitosamente.')
