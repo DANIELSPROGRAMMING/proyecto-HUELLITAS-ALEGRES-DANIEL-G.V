@@ -390,6 +390,9 @@ def procesar_chat(request):
             'insumos': '🩺', 'higiene': '🛁', 'servicios': '🏥', 'otros': '🔧',
         }
 
+        # Set defaults — each branch overrides as needed
+        quick_replies = ['📅 Citas', '📍 Ubicación', '🚨 Urgencias']
+
         if search_terms:
             # STEP 2 or 3: user typed something specific
             # Check if the term matches a category → list product names (no prices)
@@ -416,10 +419,12 @@ def procesar_chat(request):
                         f'  • {p.nombre}'
                         for p in cat_products
                     )
+                    # Quick replies with first few product names for price lookup
+                    quick_replies = [f'💰 {p.nombre}' for p in cat_products[:4]]
                     response = (
                         f'{emoji} **{cat_name}** ({len(cat_products)} producto{"s" if len(cat_products) > 1 else ""}):\n\n'
                         f'{product_lines}\n\n'
-                        f'Escribe "precio de" seguido del nombre para ver el precio. 😊'
+                        f'Toca un producto para ver su precio, o escribe "precio de" seguido del nombre. 😊'
                     )
                 else:
                     response = f'No tenemos productos en **{cat_name}** en este momento.'
@@ -443,6 +448,7 @@ def procesar_chat(request):
             )
             if categories_with_stock:
                 lines = ['💊 **Categorías de nuestra tienda:**\n']
+                category_replies = []
                 for cat_key in categories_with_stock:
                     cat_name = cat_labels.get(cat_key, cat_key)
                     count = Producto.objects.filter(
@@ -450,12 +456,13 @@ def procesar_chat(request):
                     ).count()
                     emoji = emoji_map.get(cat_key, '📦')
                     lines.append(f'{emoji} **{cat_name}** — {count} producto{"s" if count != 1 else ""}')
+                    category_replies.append(f'{emoji} {cat_name}')
                 lines.append('')
-                lines.append('Escribe el nombre de una categoría para ver los productos, o "precio de" seguido del nombre para ver el precio.')
+                lines.append('Toca una categoría o escribe su nombre para ver los productos.')
                 response = '\n'.join(lines)
+                quick_replies = category_replies[:6]  # Max 6 quick replies for UI
             else:
                 response = STATIC_RESPONSES['no_productos']
-        quick_replies = ['📅 Citas', '📍 Ubicación', '🚨 Urgencias']
 
     elif intent == 'cita':
         slots = _get_available_slots(limit=5)

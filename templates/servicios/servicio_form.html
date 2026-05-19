@@ -26,7 +26,7 @@
   {% endif %}
 
   <div class="bg-surface-container-lowest rounded-xl shadow-[0_4px_20px_rgba(0,0,0,0.03)] border border-outline-variant/10 p-6">
-    <form method="post" novalidate class="tw-form">
+    <form method="post" enctype="multipart/form-data" novalidate class="tw-form">
       {% csrf_token %}
       {% if form.errors %}
       <div class="bg-error-container/30 border border-error/30 rounded-lg p-4 mb-4">
@@ -53,6 +53,26 @@
       <div class="mb-4">
         <label for="{{ form.descripcion.id_for_label }}">{{ form.descripcion.label }}</label>
         {{ form.descripcion }}
+      </div>
+      <div class="mb-4">
+        <label for="{{ form.imagen.id_for_label }}">{{ form.imagen.label }}</label>
+        {% if servicio and servicio.imagen %}
+        <div class="mb-2">
+          <img src="{{ servicio.imagen.url }}" alt="{{ servicio.nombre }}" class="w-32 h-32 object-cover rounded-lg border border-outline-variant/20">
+          <p class="font-caption text-caption text-on-surface-variant mt-1">Imagen actual. Deje vacío para mantenerla.</p>
+        </div>
+        {% endif %}
+        {{ form.imagen }}
+        {% if form.imagen.help_text %}
+        <p class="mt-1 font-caption text-caption text-on-surface-variant">{{ form.imagen.help_text }}</p>
+        {% endif %}
+        {% if form.imagen.errors %}
+        <div class="mt-1">
+          {% for error in form.imagen.errors %}
+          <p class="text-error font-caption text-caption">{{ error }}</p>
+          {% endfor %}
+        </div>
+        {% endif %}
       </div>
       <div class="mb-4">
         <label for="{{ form.categoria.id_for_label }}">{{ form.categoria.label }}</label>
