@@ -111,22 +111,25 @@ KEYWORD_MAP = {
     'bienvenida': ['hola', 'buenas', 'buenos dias', 'buenas tardes', 'buenas noches',
                    'hey', 'hi', 'saludos', 'inicio', 'empezar', 'ayuda'],
     # Location & hours
-    'ubicacion': ['ubicacion', 'direccion', 'donde queda', 'donde estan', 'como llego',
+    'ubicacion': ['ubicacion', 'ubicaciones', 'direccion', 'direcciones', 'donde queda', 'donde estan', 'como llego',
                   'ubicar', 'localizar', 'sede', 'clinica esta'],
     'horario': ['horario', 'horarios', 'hora', 'horas', 'abren', 'cierran', 'atienden',
-                'que dias', 'lunes', 'sabado', 'domingo', 'turno'],
-    # Emergency
-    'urgencia': ['urgencia', 'urgente', 'emergencia', 'emergency', 'desesperado',
+                'que dias', 'lunes', 'sabado', 'domingo', 'turno', 'turnos'],
+    # Emergency — includes both singular and plural for quick reply button
+    'urgencia': ['urgencia', 'urgencias', 'urgente', 'emergencia', 'emergencias',
+                 'emergency', 'desesperado',
                  'no respira', 'convulsion', 'sangrando', 'envenenado', 'morir',
                  'grave', 'desmayo', 'atropellado', 'intoxicado'],
-    # Products & prices
+    # Products & prices — includes category names for quick reply buttons
     'producto': ['precio', 'precios', 'vale', 'cuesta', 'costo', 'cuanto',
                  'valor', 'lista', 'catalogo', 'tienda', 'comprar',
                  'producto', 'productos',
-                 'vacuna', 'medicamento', 'alimento', 'comida', 'pipeta',
+                 'vacuna', 'vacunas', 'medicamento', 'medicamentos',
+                 'alimento', 'alimentos', 'comida', 'pipeta',
                  'desparasitar', 'antipulgas', 'antibiotico', 'pastilla',
                  'crema', 'shampoo', 'collar', 'juguete', 'arena',
-                 'suplemento', 'vitamina', 'suero'],
+                 'suplemento', 'vitamina', 'suero',
+                 'higiene', 'insumos'],
     # Appointments
     'cita': ['cita', 'citas', 'agendar', 'turno', 'turnos', 'disponibilidad',
              'disponible', 'horario disponible', 'reservar', 'programar',
