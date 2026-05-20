@@ -153,8 +153,17 @@ def _detect_intent(message: str) -> str:
 
     Returns the intent key or 'fallback' if no keywords match.
     Priority: urgencia > cita > producto > ubicacion/horario > bienvenida > fallback
+
+    Uses word-boundary regex matching to prevent false positives
+    (e.g. 'hi' matching inside 'higiene').
     """
     msg = _normalize_message(message)
+
+    # Build word-boundary pattern for each keyword to avoid substring matches
+    # e.g. 'hi' should NOT match inside 'higiene'
+    def _word_match(keyword: str, text: str) -> bool:
+        """Match keyword as a whole word, not a substring."""
+        return bool(re.search(rf'\b{re.escape(keyword)}\b', text))
 
     # Check intents in priority order
     priority_order = ['urgencia', 'cita', 'producto', 'ubicacion', 'horario', 'bienvenida']
@@ -162,12 +171,12 @@ def _detect_intent(message: str) -> str:
     for intent in priority_order:
         keywords = KEYWORD_MAP.get(intent, [])
         for kw in keywords:
-            if kw in msg:
+            if _word_match(kw, msg):
                 return intent
 
-    # Also check for category names directly
+    # Also check for category names directly (word boundary match)
     for val, label in CATEGORIAS:
-        if val in msg or label.lower() in msg:
+        if _word_match(val, msg) or _word_match(label.lower(), msg):
             return 'producto'
 
     return 'fallback'

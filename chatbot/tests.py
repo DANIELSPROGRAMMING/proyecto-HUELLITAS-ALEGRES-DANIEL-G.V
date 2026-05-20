@@ -46,6 +46,15 @@ class DetectIntentTests(TestCase):
         from chatbot.views import _detect_intent
         self.assertEqual(_detect_intent('urgencia cita'), 'urgencia')
 
+    def test_category_name_not_false_positive(self):
+        """Category names like 'higiene' must not match keywords like 'hi' inside them."""
+        from chatbot.views import _detect_intent
+        # 'hi' is a bienvenida keyword, but 'higiene' is a product category
+        self.assertEqual(_detect_intent('higiene'), 'producto')
+        self.assertEqual(_detect_intent('higiene y cuidado'), 'producto')
+        # 'hi' alone should still be bienvenida
+        self.assertEqual(_detect_intent('hi'), 'bienvenida')
+
     def test_fallback(self):
         from chatbot.views import _detect_intent
         self.assertEqual(_detect_intent('xyz abc random'), 'fallback')
@@ -162,10 +171,10 @@ class ChatbotViewTests(TestCase):
     def test_product_tier3_search_shows_prices(self):
         """Step 3: Specific product search shows price details."""
         from productos.models import Producto
-        Producto.objects.create(nombre='ShampooTestPrecio', categoria='higiene', precio=32000, cantidad_stock=10)
-        response, data = self._post('ShampooTestPrecio')
+        Producto.objects.create(nombre='Shampoo Test Precio', categoria='higiene', precio=32000, cantidad_stock=10)
+        response, data = self._post('precio de shampoo')
         self.assertEqual(response.status_code, 200)
         # Price search should show $ symbol
         self.assertIn('$', data['response'])
         # Clean up
-        Producto.objects.filter(nombre='ShampooTestPrecio').delete()
+        Producto.objects.filter(nombre='Shampoo Test Precio').delete()
