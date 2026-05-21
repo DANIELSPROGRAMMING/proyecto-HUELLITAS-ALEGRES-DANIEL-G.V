@@ -687,3 +687,94 @@ class ToolCallingTests(TestCase):
 
         # Verify send_with_tools was called (uses default max_rounds=3)
         mock_instance.send_with_tools.assert_called_once()
+
+
+class ImagePathTests(TestCase):
+    """Test the multimodal image analysis path."""
+
+    def setUp(self):
+        self.client = Client()
+        # Tiny valid JPEG base64 (1x1 pixel, ~140 bytes)
+        self.sample_b64 = (
+            "/9j/4AAQSkZJRgABAQEAYABgAAD/2wBDAAgGBgcGBQgHBwcJCQgKDBQNDAsL"
+            "DBkSEw8UHRofHh0aHBwgJC4nICIsIxwcKDcpLDAxNDQ0Hyc5PTgyPC4zNDL/"
+            "2wBDAQkJCQwLDBgNDRgyIRwhMjIyMjIyMjIyMjIyMjIyMjIyMjIyMjIyMjIy"
+            "MjIyMjIyMjIyMjIyMjIyMjIyMjIyMjL/wAARCAABAAEDASIAAhEBAxEB/8QA"
+            "HwAAAQUBAQEBAQEAAAAAAAAAAAECAwQFBgcICQoL/8QAtRAAAgEDAwIEAwUF"
+            "BAQAAAF9AQIDAAQRBRIhMUEGE1FhByJxFDKBkaEII0KxwRVS0fAkM2JyggkK"
+            "FhcYGRolJicoKSo0NTY3ODk6Q0RFRkdISUpTVFVWV1hZWmNkZWZnaGlqc3R1"
+            "dnd4eXqDhIWGh4iJipKTlJWWl5iZmqKjpKWmp6ipqrKztLW2t7i5usLDxMXG"
+            "x8jJytLT1NXW19jZ2uHi4+Tl5ufo6erx8vP09fb3+Pn6/8QAHwEAAwEBAQEB"
+            "AQEBAQAAAAAAAAECAwQFBgcICQoL/8QAtREAAgECBAQDBAcFBAQAAQJ3AAEC"
+            "AxEEBSExBhJBUQdhcRMiMoEIFEKRobHBCSMzUvAVYnLRChYkNOEl8RcYI0Ki"
+            "Y3Syg5Ojs8RUZHSElKU1RVVldYWVpjZGVmZ2hpanN0dXZ3eHl6goOEhYaHiI"
+            "mKkpOUlZaXmJmaoqOkpaanqKmqsrO0tba3uLm6wsPExcbHyMnK0tPU1dbX2N"
+            "na4uPk5ebn6Onq8vP09fb3+Pn6/9oADAMBAAIRAxEAPwD3+iiigD//2Q=="
+        )
+
+    def _post(self, message, image=None):
+        body = {'message': message}
+        if image:
+            body['image'] = image
+        response = self.client.post(
+            '/chatbot/procesar/',
+            data=json.dumps(body),
+            content_type='application/json',
+        )
+        return response, json.loads(response.content)
+
+    @patch('chatbot.views.NimClient')
+    def test_image_triggers_multimodal_path(self, MockNimClient):
+        """POST with image field routes to send_image(), not send_with_tools()."""
+        mock_instance = MagicMock()
+        mock_instance.send_image.return_value = (
+            '{"response": "Veo un perro de pelaje corto", "quick_replies": ["Peluquería"]}'
+        )
+        MockNimClient.return_value = mock_instance
+
+        response, data = self._post('¿qué corte le queda?', self.sample_b64)
+        self.assertEqual(response.status_code, 200)
+        self.assertIn('pelaje', data['response'])
+        # send_image should be called, NOT send_with_tools
+        mock_instance.send_image.assert_called_once()
+        mock_instance.send_with_tools.assert_not_called()
+
+    @patch('chatbot.views.NimClient')
+    def test_image_without_api_key_falls_back(self, MockNimClient):
+        """Image without API key should return fallback (test simulates no key)."""
+        mock_instance = MagicMock()
+        mock_instance.send_image.side_effect = Exception("No API key")
+        MockNimClient.return_value = mock_instance
+
+        # This test verifies the except Exception block for images
+        response, data = self._post('foto de mi mascota', self.sample_b64)
+        self.assertEqual(response.status_code, 200)
+        self.assertIn('No estoy seguro', data['response'])
+
+    @patch('chatbot.views.NimClient')
+    def test_image_timeout_returns_friendly_message(self, MockNimClient):
+        """Image timeout → friendly message, not 500."""
+        mock_instance = MagicMock()
+        mock_instance.send_image.side_effect = requests.exceptions.Timeout("Timeout")
+        MockNimClient.return_value = mock_instance
+
+        response, data = self._post('mira esta foto', self.sample_b64)
+        self.assertEqual(response.status_code, 200)
+        self.assertIn('tardando', data['response'])
+
+    @patch('chatbot.views.NimClient')
+    def test_image_connection_error_returns_friendly_message(self, MockNimClient):
+        """Image connection error → friendly message."""
+        mock_instance = MagicMock()
+        mock_instance.send_image.side_effect = requests.exceptions.ConnectionError("Down")
+        MockNimClient.return_value = mock_instance
+
+        response, data = self._post('analiza esto', self.sample_b64)
+        self.assertEqual(response.status_code, 200)
+        self.assertIn('No puedo analizar imágenes', data['response'])
+
+    def test_no_image_uses_normal_text_path(self):
+        """Message without image field uses normal text intent path (greeting)."""
+        response, data = self._post('hola')
+        self.assertEqual(response.status_code, 200)
+        self.assertIn('👋', data['response'])

@@ -159,7 +159,25 @@
 
         {# ── Input area ── #}
         <div class="px-3 py-2.5 bg-surface-container-lowest border-t border-outline-variant/20 flex-shrink-0">
-            <form @submit.prevent="sendMessage()" class="flex gap-2">
+            {# ── Image preview ── #}
+            <div x-show="imagePreview" class="mb-2 relative inline-block">
+                <img :src="imagePreview" class="h-16 rounded-lg border border-outline-variant/30" alt="Vista previa" />
+                <button @click="clearImage()"
+                    class="absolute -top-1.5 -right-1.5 w-5 h-5 bg-error text-on-error rounded-full
+                           flex items-center justify-center text-[12px] hover:bg-error/80 transition-colors"
+                    aria-label="Quitar imagen">&times;</button>
+            </div>
+            <form @submit.prevent="sendMessage()" class="flex gap-2 items-end">
+                {# ── Camera button ── #}
+                <input type="file" accept="image/*" class="hidden" x-ref="fileInput"
+                       @change="handleImageSelect($event)" />
+                <button type="button" @click="$refs.fileInput.click()"
+                    :disabled="loading"
+                    class="bg-surface-container hover:bg-primary-container/30 text-on-surface rounded-lg px-2.5 py-2
+                           disabled:opacity-40 disabled:cursor-not-allowed transition-colors"
+                    aria-label="Adjuntar imagen" title="Adjuntar foto de mascota">
+                    <span class="material-symbols-outlined text-[20px]">photo_camera</span>
+                </button>
                 <input
                     x-ref="chatInput"
                     type="text"
@@ -173,7 +191,7 @@
                 />
                 <button
                     type="submit"
-                    :disabled="!input.trim() || loading"
+                    :disabled="(!input.trim() && !imageFile) || loading"
                     class="bg-primary text-on-primary rounded-lg px-3 py-2
                            disabled:opacity-40 disabled:cursor-not-allowed hover:opacity-90 transition-opacity"
                     aria-label="Enviar mensaje"
@@ -181,6 +199,10 @@
                     <span class="material-symbols-outlined text-[20px]">send</span>
                 </button>
             </form>
+            {# ── Privacy notice ── #}
+            <p class="text-[10px] text-on-surface-variant/50 mt-1.5 text-center leading-tight">
+                Las imágenes se envían a un servicio de IA externo para su análisis.
+            </p>
         </div>
     </div>
 </div>
@@ -192,6 +214,8 @@ function chatbotWidget() {
         open: false,
         input: '',
         loading: false,
+        imageFile: null,
+        imagePreview: null,
         messages: [],
         quickReplies: ['📅 Citas', '💊 Productos', '📍 Ubicación', '🚨 Urgencias'],
         welcomeMsg: '',
@@ -209,12 +233,60 @@ function chatbotWidget() {
 
         async sendMessage() {
             const text = this.input.trim();
-            if (!text || this.loading) return;
+            const hasImage = !!this.imageFile;
+            if ((!text && !hasImage) || this.loading) return;
 
-            this.messages.push({ sender: 'user', text });
+            const displayText = text || '📷 Analizando imagen...';
+            this.messages.push({ sender: 'user', text: displayText });
             this.input = '';
+
+            let imageBase64 = null;
+            if (hasImage) {
+                imageBase64 = await this._fileToBase64(this.imageFile);
+                this.clearImage();
+            }
+
             this.quickReplies = [];
-            await this._fetchResponse(text);
+            await this._fetchResponse(text, imageBase64);
+        },
+
+        handleImageSelect(event) {
+            const file = event.target.files[0];
+            if (!file) return;
+
+            const maxSize = 4 * 1024 * 1024; // 4 MB
+            if (file.size > maxSize) {
+                alert('La imagen es muy pesada. El tamaño máximo es 4 MB.');
+                event.target.value = '';
+                return;
+            }
+            if (!file.type.startsWith('image/')) {
+                alert('El archivo debe ser una imagen (JPG, PNG, etc.).');
+                event.target.value = '';
+                return;
+            }
+
+            this.imageFile = file;
+            this.imagePreview = URL.createObjectURL(file);
+        },
+
+        clearImage() {
+            this.imageFile = null;
+            this.imagePreview = null;
+            if (this.$refs.fileInput) this.$refs.fileInput.value = '';
+        },
+
+        _fileToBase64(file) {
+            return new Promise((resolve, reject) => {
+                const reader = new FileReader();
+                reader.onload = () => {
+                    // Strip the data:image/...;base64, prefix — backend just wants raw base64
+                    const base64 = reader.result.split(',')[1];
+                    resolve(base64);
+                };
+                reader.onerror = reject;
+                reader.readAsDataURL(file);
+            });
         },
 
         async sendQuickReply(reply) {
@@ -225,18 +297,21 @@ function chatbotWidget() {
             await this._fetchResponse(text);
         },
 
-        async _fetchResponse(text) {
+        async _fetchResponse(text, imageBase64 = null) {
             this.loading = true;
             this._scrollToBottom();
 
             try {
+                const body = { message: text };
+                if (imageBase64) body.image = imageBase64;
+
                 const res = await fetch(this.chatUrl, {
                     method: 'POST',
                     headers: {
                         'Content-Type': 'application/json',
                         'X-CSRFToken': document.querySelector('[name=csrfmiddlewaretoken]')?.value || '',
                     },
-                    body: JSON.stringify({ message: text }),
+                    body: JSON.stringify(body),
                 });
 
                 if (!res.ok) throw new Error('Error de conexión');

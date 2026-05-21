@@ -162,4 +162,8 @@ MEDIA_ROOT = BASE_DIR / 'media'
 NVIDIA_NIM_API_KEY = os.getenv('NVIDIA_NIM_API_KEY', '')
 NVIDIA_NIM_BASE_URL = 'https://integrate.api.nvidia.com'
 NVIDIA_NIM_MODEL = 'nvidia/nemotron-mini-4b-instruct'
+NVIDIA_NIM_VISION_MODEL = 'microsoft/phi-4-multimodal-instruct'
 NVIDIA_NIM_TIMEOUT = 15
+NVIDIA_NIM_IMAGE_TIMEOUT = 30
+# Max image size accepted from frontend (bytes). Enforced in JS + server.
+NIM_MAX_IMAGE_BYTES = 4 * 1024 * 1024  # 4 MB

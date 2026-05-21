@@ -88,7 +88,62 @@ class NimClient:
             '¿Podrías ser más específico con tu consulta?'
         )
 
-    # ── Private helpers ──
+    def send_image(self, user_message, image_base64, system_prompt,
+                   context=None, vision_model=None, image_timeout=30):
+        """Send text + image to multimodal NIM model.
+
+        Uses OpenAI-compatible vision format with image_url in content array.
+        Image is sent as base64 data URI (not stored on disk).
+
+        Args:
+            image_base64: raw base64 string WITHOUT the data:image prefix
+            vision_model: model override for vision (default: self.model)
+            image_timeout: separate timeout for image inference (default: 30s)
+
+        Returns: raw text response string
+        """
+        url = f"{self.base_url}/v1/chat/completions"
+        model = vision_model or self.model
+
+        messages = [
+            {"role": "system", "content": system_prompt},
+        ]
+        if context:
+            messages.append({"role": "system", "content": str(context)})
+
+        # Multimodal user message: text + image
+        content = []
+        if user_message:
+            content.append({"type": "text", "text": user_message})
+        content.append({
+            "type": "image_url",
+            "image_url": {"url": f"data:image/jpeg;base64,{image_base64}"},
+        })
+        messages.append({"role": "user", "content": content})
+
+        payload = {
+            "model": model,
+            "messages": messages,
+            "max_tokens": 1024,
+            "temperature": 0.7,
+        }
+
+        response = requests.post(
+            url,
+            headers={
+                "Authorization": f"Bearer {self.api_key}",
+                "Content-Type": "application/json",
+            },
+            json=payload,
+            timeout=image_timeout,
+        )
+        response.raise_for_status()
+
+        data = response.json()
+        choices = data.get('choices', [])
+        if choices:
+            return choices[0]['message']['content']
+        return ''
 
     def _build_messages(self, system_prompt, user_message, context):
         """Build the messages array for a chat completion request."""

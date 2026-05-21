@@ -384,17 +384,74 @@ def procesar_chat(request):
     try:
         data = json.loads(request.body)
         message = data.get('message', '').strip()
+        image_b64 = data.get('image', '').strip()
     except (json.JSONDecodeError, AttributeError):
         return JsonResponse({
             'response': STATIC_RESPONSES['fallback'],
             'quick_replies': ['📅 Citas', '💊 Productos', '📍 Ubicación', '🚨 Urgencias'],
         })
 
-    if not message:
+    if not message and not image_b64:
         return JsonResponse({
             'response': STATIC_RESPONSES['bienvenida'],
             'quick_replies': ['📅 Citas', '💊 Productos', '📍 Ubicación', '🚨 Urgencias'],
         })
+
+    # ── Image routing: bypass rule engine, go directly to multimodal NIM ──
+    if image_b64 and settings.NVIDIA_NIM_API_KEY:
+        try:
+            nim_client = NimClient(
+                api_key=settings.NVIDIA_NIM_API_KEY,
+                base_url=settings.NVIDIA_NIM_BASE_URL,
+                model=settings.NVIDIA_NIM_MODEL,
+                timeout=settings.NVIDIA_NIM_TIMEOUT,
+            )
+            vision_prompt = (
+                "Eres un experto veterinario visual de Huellitas Alegres. "
+                "Analiza la imagen de la mascota y proporciona observaciones "
+                "sobre su estado físico visible, tipo de pelaje, raza aparente, "
+                "y recomienda servicios de la clínica que podrían ser útiles "
+                "(Peluquería, Cuidado Dental, Guardería, Masaje Relajante). "
+                "Responde en español, sé amable pero profesional. "
+                "IMPORTANTE: aclará que esto es una observación preliminar "
+                "y no reemplaza una consulta veterinaria presencial. "
+                "Siempre responde en formato JSON con la estructura "
+                '{"response": "tu respuesta aquí", "quick_replies": ["sugerencia1"]}. '
+                "No incluyas texto fuera del JSON."
+            )
+            context = _build_nim_context()
+            raw_text = nim_client.send_image(
+                user_message=message or "Analiza esta mascota",
+                image_base64=image_b64,
+                system_prompt=vision_prompt,
+                context=context,
+                vision_model=settings.NVIDIA_NIM_VISION_MODEL,
+                image_timeout=settings.NVIDIA_NIM_IMAGE_TIMEOUT,
+            )
+            formatted = NimResponseFormatter.parse(raw_text)
+            return JsonResponse({
+                'response': formatted['response'],
+                'quick_replies': formatted['quick_replies'],
+            })
+        except requests.exceptions.Timeout:
+            return JsonResponse({
+                'response': (
+                    'El análisis de la imagen está tardando más de lo esperado. '
+                    '¿Podrías intentar con una imagen más pequeña o describir tu consulta con texto?'
+                ),
+                'quick_replies': ['🔄 Intentar de nuevo', '📅 Citas', '💊 Productos'],
+            })
+        except requests.exceptions.ConnectionError:
+            return JsonResponse({
+                'response': 'No puedo analizar imágenes en este momento. ¿Podrías describir tu consulta con texto?',
+                'quick_replies': ['📅 Citas', '💊 Productos', '📍 Ubicación'],
+            })
+        except Exception as e:
+            print(f'[NIM IMAGE ERROR] {type(e).__name__}: {e}')
+            return JsonResponse({
+                'response': STATIC_RESPONSES['fallback'],
+                'quick_replies': ['📅 Citas', '💊 Productos', '📍 Ubicación', '🚨 Urgencias'],
+            })
 
     intent = _detect_intent(message)
 
