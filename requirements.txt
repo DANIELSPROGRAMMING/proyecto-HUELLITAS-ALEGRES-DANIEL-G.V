@@ -1,0 +1,12 @@
+Django>=5.2
+requests>=2.33
+python-dotenv>=1.2
+mysqlclient>=2.2
+Pillow>=12.2
+openpyxl>=3.1
+reportlab>=4.4
+xhtml2pdf>=0.2
+playwright>=1.56
+pypdf>=6.10
+PyYAML>=6.0
+pyHanko>=0.34

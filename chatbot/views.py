@@ -9,12 +9,18 @@ Implemented for INNOVATECH competition and SENA project presentation.
 import json
 import re
 import unicodedata
+
+import requests
+
+from django.conf import settings
 from django.http import JsonResponse
 from django.views.decorators.http import require_POST
 from django.views.decorators.csrf import csrf_exempt
 
 from productos.models import Producto, CATEGORIAS
 from agenda.models import Disponibilidad, Cita
+from chatbot.services.nim_client import NimClient
+from chatbot.services.nim_formatter import NimResponseFormatter
 
 
 # ──────────────────────────────────────────────
@@ -336,6 +342,15 @@ def procesar_chat(request):
 
     intent = _detect_intent(message)
 
+    # ── AI conversation state: if the user was talking to the AI,
+    #     keep routing to NIM unless they explicitly ask for something
+    #     transactional (schedule, location, emergency, appointment).
+    _ai_active = request.session.get('_ai_conversation_active', False)
+    _transactional_intents = {'urgencia', 'ubicacion', 'horario', 'cita'}
+
+    if _ai_active and intent not in _transactional_intents:
+        intent = 'fallback'
+
     # Authenticated user personalization
     is_authenticated = request.user.is_authenticated
     user_name = ''
@@ -485,8 +500,44 @@ def procesar_chat(request):
         response = header + _format_slots(slots)
         quick_replies = ['💊 Productos', '📍 Ubicación', '🚨 Urgencias']
 
+    # ── Rule engine responded → exit AI conversation mode
+    if intent != 'fallback':
+        request.session['_ai_conversation_active'] = False
+
     else:
-        response = STATIC_RESPONSES['fallback']
+        # ── Hybrid dispatch: try NIM, fall back to static fallback ──
+        try:
+            nim_client = NimClient(
+                api_key=settings.NVIDIA_NIM_API_KEY,
+                base_url=settings.NVIDIA_NIM_BASE_URL,
+                model=settings.NVIDIA_NIM_MODEL,
+                timeout=settings.NVIDIA_NIM_TIMEOUT,
+            )
+            system_prompt = (
+                "Eres un asistente de la clínica veterinaria Huellitas Alegres. "
+                "Responde en español de forma amable y concisa. "
+                "Siempre responde en formato JSON con la estructura "
+                '{"response": "tu respuesta aquí", "quick_replies": ["sugerencia1", "sugerencia2"]}. '
+                "No incluyas texto fuera del JSON."
+            )
+            raw_text = nim_client.send(message, system_prompt)
+            formatted = NimResponseFormatter.parse(raw_text)
+            response = formatted['response']
+            quick_replies = formatted['quick_replies']
+            # Conversation is now with AI — mark session
+            request.session['_ai_conversation_active'] = True
+        except requests.exceptions.Timeout as e:
+            print(f'[NIM TIMEOUT] {e}')
+            response = 'Lo siento, estoy teniendo problemas para conectar con mi cerebro principal. ¿Podrías intentar de nuevo en unos segundos?'
+            quick_replies = ['🔄 Intentar de nuevo']
+        except requests.exceptions.ConnectionError as e:
+            print(f'[NIM CONNECTION] {e}')
+            response = 'Lo siento, no puedo contactar con el servicio de IA en este momento. Intenta de nuevo más tarde.'
+            quick_replies = ['🔄 Reintentar', '📍 Ubicación', '🕐 Horarios']
+        except Exception as e:
+            print(f'[NIM ERROR] {type(e).__name__}: {e}')
+            response = STATIC_RESPONSES['fallback']
+            quick_replies = ['📅 Citas', '💊 Productos', '📍 Ubicación', '🚨 Urgencias']
 
     return JsonResponse({
         'response': response,

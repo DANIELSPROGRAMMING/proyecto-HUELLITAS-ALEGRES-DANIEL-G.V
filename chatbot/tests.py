@@ -2,6 +2,9 @@
 
 import json
 
+from unittest.mock import patch, MagicMock
+import requests
+
 from django.test import TestCase, Client
 
 
@@ -66,6 +69,15 @@ class ChatbotViewTests(TestCase):
 
     def setUp(self):
         self.client = Client()
+        # Prevent real NIM API calls during existing view tests.
+        # Mock NimClient to always raise so the hybrid dispatch falls back
+        # to STATIC_RESPONSES['fallback'] — preserving pre-NIM test expectations.
+        nim_patcher = patch('chatbot.views.NimClient')
+        self.MockNimClient = nim_patcher.start()
+        mock_instance = MagicMock()
+        mock_instance.send.side_effect = Exception("Mocked NIM unavailable")
+        self.MockNimClient.return_value = mock_instance
+        self.addCleanup(nim_patcher.stop)
 
     def _post(self, message):
         """Helper to POST a chat message and return parsed JSON."""
@@ -178,3 +190,314 @@ class ChatbotViewTests(TestCase):
         self.assertIn('$', data['response'])
         # Clean up
         Producto.objects.filter(nombre='Shampoo Test Precio').delete()
+
+
+# ──────────────────────────────────────────────
+# Phase 4 Tests — NVIDIA NIM Hybrid Integration
+# ──────────────────────────────────────────────
+
+
+class NimClientTests(TestCase):
+    """Test NimClient HTTP wrapper."""
+
+    def setUp(self):
+        from chatbot.services.nim_client import NimClient
+        self.client = NimClient(
+            api_key='test-key',
+            base_url='https://api.nvidia.com',
+            model='test-model',
+            timeout=5,
+        )
+        self.system_prompt = "You are a helpful assistant."
+        self.user_message = "Hello"
+
+    @patch('chatbot.services.nim_client.requests.post')
+    def test_send_success_returns_raw_text(self, mock_post):
+        """NimClient.send() returns text on successful API response."""
+        mock_response = MagicMock()
+        mock_response.status_code = 200
+        mock_response.json.return_value = {
+            'choices': [{'message': {'content': "Sure! Here is the answer.\n"}}]
+        }
+        mock_post.return_value = mock_response
+
+        result = self.client.send(self.user_message, self.system_prompt)
+        self.assertIsInstance(result, str)
+        self.assertIn("Sure!", result)
+
+    @patch('chatbot.services.nim_client.requests.post')
+    def test_send_payload_format(self, mock_post):
+        """NimClient.send() formats OpenAI-compatible chat completions payload."""
+        mock_response = MagicMock()
+        mock_response.status_code = 200
+        mock_response.text = "OK"
+        mock_post.return_value = mock_response
+
+        self.client.send("¿Tienen comida para gatos?", "Eres un asistente.")
+
+        # Verify payload structure
+        call_args = mock_post.call_args
+        payload = call_args[1]['json']
+        messages = payload['messages']
+        self.assertEqual(len(messages), 2)
+        self.assertEqual(messages[0]['role'], 'system')
+        self.assertEqual(messages[0]['content'], 'Eres un asistente.')
+        self.assertEqual(messages[1]['role'], 'user')
+        self.assertEqual(messages[1]['content'], '¿Tienen comida para gatos?')
+        # Verify headers
+        headers = call_args[1]['headers']
+        self.assertIn('Authorization', headers)
+        self.assertIn('test-key', headers['Authorization'])
+
+    @patch('chatbot.services.nim_client.requests.post')
+    def test_send_timeout_raises_request_exception(self, mock_post):
+        """NimClient.send() raises RequestException on timeout."""
+        mock_post.side_effect = requests.exceptions.Timeout("Connection timed out")
+        with self.assertRaises(requests.RequestException):
+            self.client.send(self.user_message, self.system_prompt)
+
+    @patch('chatbot.services.nim_client.requests.post')
+    def test_send_http_error_raises_request_exception(self, mock_post):
+        """NimClient.send() raises RequestException on HTTP error."""
+        mock_response = MagicMock()
+        mock_response.status_code = 500
+        mock_response.raise_for_status.side_effect = requests.exceptions.HTTPError("500 Server Error")
+        mock_post.return_value = mock_response
+
+        with self.assertRaises(requests.RequestException):
+            self.client.send(self.user_message, self.system_prompt)
+
+    @patch('chatbot.services.nim_client.requests.post')
+    def test_send_invalid_api_key_401(self, mock_post):
+        """NimClient.send() raises RequestException on 401 Unauthorized."""
+        mock_response = MagicMock()
+        mock_response.status_code = 401
+        mock_response.raise_for_status.side_effect = requests.exceptions.HTTPError("401 Unauthorized")
+        mock_post.return_value = mock_response
+
+        with self.assertRaises(requests.RequestException):
+            self.client.send(self.user_message, self.system_prompt)
+
+    @patch('chatbot.services.nim_client.requests.post')
+    def test_send_invalid_api_key_403(self, mock_post):
+        """NimClient.send() raises RequestException on 403 Forbidden."""
+        mock_response = MagicMock()
+        mock_response.status_code = 403
+        mock_response.raise_for_status.side_effect = requests.exceptions.HTTPError("403 Forbidden")
+        mock_post.return_value = mock_response
+
+        with self.assertRaises(requests.RequestException):
+            self.client.send(self.user_message, self.system_prompt)
+
+
+class NimFormatterTests(TestCase):
+    """Test NimResponseFormatter parsing."""
+
+    def test_parse_valid_json(self):
+        """Valid JSON → correct dict with response and quick_replies."""
+        from chatbot.services.nim_formatter import NimResponseFormatter
+        raw = '{"response": "Hola, ¿en qué te ayudo?", "quick_replies": ["Precios", "Citas"]}'
+        result = NimResponseFormatter.parse(raw)
+        self.assertIsInstance(result, dict)
+        self.assertEqual(result['response'], 'Hola, ¿en qué te ayudo?')
+        self.assertEqual(result['quick_replies'], ['Precios', 'Citas'])
+
+    def test_parse_plain_text_fallback(self):
+        """Plain text (not JSON) → text becomes response, quick_replies=defaults."""
+        from chatbot.services.nim_formatter import NimResponseFormatter
+        raw = "Hola, soy el asistente de la clínica."
+        result = NimResponseFormatter.parse(raw)
+        self.assertIsInstance(result, dict)
+        self.assertIn('response', result)
+        self.assertIn('quick_replies', result)
+        self.assertIn('clínica', result['response'])
+        self.assertEqual(result['quick_replies'], NimResponseFormatter.DEFAULT_QUICK_REPLIES)
+
+    def test_parse_malformed_json(self):
+        """Malformed JSON → graceful fallback, never raises."""
+        from chatbot.services.nim_formatter import NimResponseFormatter
+        raw = '{"response": "broken json", "quick_replies": ['
+        result = NimResponseFormatter.parse(raw)
+        self.assertIsInstance(result, dict)
+        self.assertIn('response', result)
+        self.assertIsInstance(result['quick_replies'], list)
+
+    def test_parse_strips_nemotron_special_tokens(self):
+        """Nemotron special tokens are stripped BEFORE JSON parsing."""
+        from chatbot.services.nim_formatter import NimResponseFormatter
+        raw = (
+            '<extra_id_0>Assistant\n'
+            '{"response": "Claro", "quick_replies": ["Sí", "No"]}\n'
+            '<|endoftext|>'
+        )
+        result = NimResponseFormatter.parse(raw)
+        self.assertEqual(result['response'], 'Claro')
+        self.assertEqual(result['quick_replies'], ['Sí', 'No'])
+
+    def test_parse_strips_all_special_tokens(self):
+        """All Nemotron tokens stripped: extra_id, endoftext, assistant, user, system."""
+        from chatbot.services.nim_formatter import NimResponseFormatter
+        raw = (
+            '<extra_id_0>System\nSystem prompt\n'
+            '<extra_id_1>User\nUser message\n'
+            '<extra_id_0>Assistant\n'
+            '<|user|><|system|><|assistant|>'
+            '{"response": "Test", "quick_replies": ["A", "B"]}'
+            '<|endoftext|>'
+        )
+        result = NimResponseFormatter.parse(raw)
+        self.assertEqual(result['response'], 'Test')
+        self.assertEqual(result['quick_replies'], ['A', 'B'])
+
+    def test_parse_empty_input(self):
+        """Empty input → safe defaults, never raises."""
+        from chatbot.services.nim_formatter import NimResponseFormatter
+        result = NimResponseFormatter.parse('')
+        self.assertIsInstance(result, dict)
+        self.assertIn('response', result)
+        self.assertIsInstance(result['quick_replies'], list)
+        self.assertTrue(len(result['quick_replies']) > 0)
+
+
+class NimIntegrationTests(TestCase):
+    """Integration tests via Django Client — NIM path in procesar_chat."""
+
+    def setUp(self):
+        self.client = Client()
+
+    def _post(self, message):
+        """Helper to POST a chat message and return (response, parsed JSON)."""
+        response = self.client.post(
+            '/chatbot/procesar/',
+            data=json.dumps({'message': message}),
+            content_type='application/json',
+        )
+        return response, json.loads(response.content)
+
+    @patch('chatbot.views.NimClient')
+    def test_fallback_triggers_nim_path(self, MockNimClient):
+        """Unrecognized message triggers NIM dispatch path."""
+        from chatbot.services.nim_formatter import NimResponseFormatter
+
+        mock_instance = MagicMock()
+        mock_instance.send.return_value = '{"response": "Respuesta IA", "quick_replies": ["A", "B"]}'
+        MockNimClient.return_value = mock_instance
+
+        response, data = self._post('consulta_inexistente_xyz_123')
+        self.assertEqual(response.status_code, 200)
+        self.assertIn('response', data)
+        self.assertIn('quick_replies', data)
+        # NIM path should have been called
+        mock_instance.send.assert_called_once()
+        # Response should NOT be the static fallback
+        self.assertNotIn('No estoy seguro', data['response'])
+
+    @patch('chatbot.views.NimClient')
+    def test_nim_error_falls_back_to_static(self, MockNimClient):
+        """Generic/unexpected NIM error → graceful fallback to STATIC_RESPONSES['fallback']."""
+        mock_instance = MagicMock()
+        mock_instance.send.side_effect = Exception("Unexpected error")
+        MockNimClient.return_value = mock_instance
+
+        response, data = self._post('consulta_inexistente_error_test')
+        self.assertEqual(response.status_code, 200)
+        self.assertIn('No estoy seguro', data['response'])
+
+    @patch('chatbot.views.NimClient')
+    def test_nim_timeout_shows_technical_message(self, MockNimClient):
+        """NIM timeout → user-friendly technical error, NOT static fallback menu."""
+        mock_instance = MagicMock()
+        mock_instance.send.side_effect = requests.exceptions.Timeout("Timeout")
+        MockNimClient.return_value = mock_instance
+
+        response, data = self._post('consulta_timeout_test')
+        self.assertEqual(response.status_code, 200)
+        self.assertIn('problemas para conectar', data['response'])
+        self.assertNotIn('No estoy seguro', data['response'])
+
+    @patch('chatbot.views.NimClient')
+    def test_nim_401_falls_back_to_static(self, MockNimClient):
+        """Invalid API key (401) → fallback to static response, NO error logging."""
+        mock_instance = MagicMock()
+        mock_instance.send.side_effect = requests.exceptions.HTTPError("401 Unauthorized")
+        MockNimClient.return_value = mock_instance
+
+        response, data = self._post('test_nim_401_fallback')
+        self.assertEqual(response.status_code, 200)
+        self.assertIn('No estoy seguro', data['response'])
+
+    def test_existing_intents_still_work(self):
+        """Existing intents work unchanged (not affected by NIM integration)."""
+        response, data = self._post('hola')
+        self.assertEqual(response.status_code, 200)
+        self.assertIn('👋', data['response'])
+
+
+class AIConversationStateTests(TestCase):
+    """Test the _ai_conversation_active session flag for AI conversation mode."""
+
+    def setUp(self):
+        self.client = Client()
+
+    def _post(self, message):
+        response = self.client.post(
+            '/chatbot/procesar/',
+            data=json.dumps({'message': message}),
+            content_type='application/json',
+        )
+        return response, json.loads(response.content)
+
+    @patch('chatbot.views.NimClient')
+    def test_ai_active_forces_nim_on_non_transactional(self, MockNimClient):
+        """When _ai_conversation_active=True, non-transactional messages go to NIM,
+        even if they contain keywords that would normally match rule-based intents."""
+        session = self.client.session
+        session['_ai_conversation_active'] = True
+        session.save()
+
+        mock_instance = MagicMock()
+        mock_instance.send.return_value = (
+            '{"response": "Hola desde la IA", "quick_replies": ["Sí", "No"]}'
+        )
+        MockNimClient.return_value = mock_instance
+
+        # 'pollo' would normally match 'producto' intent, but AI mode forces NIM
+        response, data = self._post('pollo')
+        self.assertIn('Hola desde la IA', data['response'])
+        mock_instance.send.assert_called_once()
+
+    @patch('chatbot.views.NimClient')
+    def test_ai_active_allows_transactional_intents(self, MockNimClient):
+        """When _ai_conversation_active=True, transactional intents
+        (horario, ubicacion, urgencia, cita) still use the rule engine."""
+        session = self.client.session
+        session['_ai_conversation_active'] = True
+        session.save()
+
+        response, data = self._post('horario')
+        # Rule engine should handle it, not NIM
+        MockNimClient.assert_not_called()
+
+    @patch('chatbot.views.NimClient')
+    def test_nim_success_sets_ai_active_flag(self, MockNimClient):
+        """After NIM responds successfully, _ai_conversation_active is set to True."""
+        mock_instance = MagicMock()
+        mock_instance.send.return_value = (
+            '{"response": "Respuesta IA", "quick_replies": ["A"]}'
+        )
+        MockNimClient.return_value = mock_instance
+
+        self._post('mensaje_desconocido_para_nim')
+        # Session flag must be True after NIM success
+        self.assertTrue(self.client.session['_ai_conversation_active'])
+
+    @patch('chatbot.views.NimClient')
+    def test_rule_engine_resets_ai_active_flag(self, MockNimClient):
+        """After rule engine responds, _ai_conversation_active is set to False."""
+        session = self.client.session
+        session['_ai_conversation_active'] = True
+        session.save()
+
+        self._post('ubicacion')
+        # Flag must be reset after rule engine takes over
+        self.assertFalse(self.client.session['_ai_conversation_active'])

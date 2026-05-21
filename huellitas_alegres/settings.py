@@ -1,4 +1,7 @@
-import os 
+import os
+
+from dotenv import load_dotenv
+load_dotenv()
 
 from pathlib import Path
 # Configuracion de la ruta base del proyecto
@@ -151,3 +154,12 @@ LOGIN_URL = '/usuarios/login/'
 # Media files (uploads)
 MEDIA_URL = '/media/'
 MEDIA_ROOT = BASE_DIR / 'media'
+
+# ──────────────────────────────────────────────
+# NVIDIA NIM — Chatbot AI fallback
+# ──────────────────────────────────────────────
+
+NVIDIA_NIM_API_KEY = os.getenv('NVIDIA_NIM_API_KEY', '')
+NVIDIA_NIM_BASE_URL = 'https://integrate.api.nvidia.com'
+NVIDIA_NIM_MODEL = 'nvidia/nemotron-mini-4b-instruct'
+NVIDIA_NIM_TIMEOUT = 15
