@@ -11,7 +11,7 @@ Plataforma web desarrollada con Django que permite administrar de forma completa
 - [Descripción General](#-descripción-general)
 - [Roles del Sistema](#-roles-del-sistema)
 - [Funcionalidades por Rol](#-funcionalidades-por-rol)
-- [Chatbot de Reglas](#-chatbot-de-reglas)
+- [Asistente Virtual Híbrido con IA (NVIDIA NIM)](#-asistente-virtual-híbrido-con-ia-nvidia-nim)
 - [Sistema de Notificaciones](#-sistema-de-notificaciones)
 - [Catálogo de Servicios para Clientes](#-catálogo-de-servicios-para-clientes)
 - [Diseño Visual](#-diseño-visual)
@@ -95,41 +95,56 @@ La interfaz sigue un **sistema de diseño Material Design 3** con paleta persona
 
 ---
 
-## 🤖 Chatbot de Reglas
+## 🤖 Asistente Virtual Híbrido con IA (NVIDIA NIM)
 
-El sistema cuenta con un **Chatbot de Reglas** (Rule-based Chatbot) que opera de forma local, sin dependencias externas ni costos de infraestructura.
+El sistema cuenta con un **asistente virtual híbrido** que combina un motor de reglas local (rápido, gratuito, determinista) con inteligencia artificial en la nube vía **NVIDIA NIM**. La arquitectura híbrida garantiza respuesta inmediata para consultas frecuentes y razonamiento avanzado para preguntas abiertas.
 
-### Funcionamiento
+```
+Usuario → _detect_intent()
+  ├── reglas (6 intents) → respuesta instantánea desde DB ($0, 0ms)
+  └── fallback → NVIDIA NIM → NimResponseFormatter → respuesta IA
+```
 
-El chatbot utiliza **detección de palabras clave** con normalización de texto (eliminación de acentos, emojis y caracteres especiales) para identificar la intención del usuario. Los datos consultados provienen **directamente de la base de datos**, garantizando información siempre actualizada.
+### Fase 1 — Hybrid Dispatcher
+El motor de reglas procesa **6 intenciones** (bienvenida, horario, ubicación, urgencia, producto, cita) con detección de palabras clave y normalización de texto. Si no reconoce la intención, deriva al modelo de IA. El `NimResponseFormatter` garantiza que la respuesta siempre cumpla el contrato `{response, quick_replies}` del frontend Alpine.js, sin importar lo que el modelo devuelva.
 
-### Intenciones soportadas
+**Estado de conversación**: un flag `_ai_conversation_active` en la sesión de Django evita que el rule engine "secuestre" conversaciones en curso con la IA. Si el usuario está hablando con la IA, los mensajes siguen fluyendo hacia NIM hasta que el usuario pida explícitamente algo transaccional (horario, cita).
 
-| Intención | Palabras clave | Respuesta |
-|-----------|---------------|-----------|
-| 📍 **Ubicación** | "ubicación", "dirección", "dónde queda" | Dirección, teléfono y horarios desde `ConfiguraciónClínica` |
-| 📅 **Horario** | "horario", "a qué hora", "atienden" | Horarios de atención (L-V, Sábados, Domingos) |
-| 🚨 **Urgencia** | "urgencia", "no respira", "convulsión" | Línea de emergencia 24/7 con síntomas críticos |
-| 💊 **Productos** | "precio", "vacuna", "shampoo", nombre de producto | Flujo de 3 niveles (ver abajo) |
-| 📅 **Citas** | "cita", "agendar", "turno", "disponibilidad" | Próximos turnos disponibles con nombre del veterinario |
-| 👋 **Bienvenida** | "hola", "buenas", "hey" | Saludo personalizado si el usuario está autenticado |
+### Fase 2 — RAG: Contexto Real de Base de Datos
+Para **eliminar alucinaciones**, cada llamada a NIM inyecta contexto real consultado en vivo desde la base de datos:
+- Categorías de productos con cantidades (5 categorías, 27 productos activos)
+- Servicios disponibles con nombres reales
+- Datos de la clínica (dirección, teléfono, horarios)
 
-### Flujo de 3 niveles para productos
+El system prompt instruye al modelo: *"Usa EXCLUSIVAMENTE la información proporcionada. NUNCA inventes productos, servicios ni especialidades."*
 
-El chatbot implementa una **divulgación progresiva** para no saturar al usuario con información:
+### Fase 3 — Function Calling (Tools API)
+El modelo puede **consultar la base de datos en tiempo real** mediante 4 herramientas nativas de la API de NVIDIA NIM:
 
-1. **Nivel 1 — Categorías**: Al tocar "💊 Productos" sin término de búsqueda, muestra las categorías disponibles con cantidad de productos, **sin precios**.
-2. **Nivel 2 — Nombres**: Al escribir una categoría (ej: "alimentos"), lista los nombres de productos, **sin precios**. Invita a preguntar por precio.
-3. **Nivel 3 — Detalle**: Al escribir un nombre específico o "precio de X", muestra **nombre, categoría, precio y stock disponible**.
+| Tool | Descripción | Ejemplo |
+|------|-------------|---------|
+| `check_availability` | Turnos disponibles por servicio/fecha | "¿Hay turno para peluquería mañana?" |
+| `list_services` | Todos los servicios con nombre y tarifa | "¿Qué servicios ofrecen?" |
+| `list_products_by_category` | Productos por categoría | "¿Qué alimentos tienen?" |
+| `get_clinic_info` | Dirección, teléfono, horarios | "¿Dónde están ubicados?" |
 
-### Características técnicas
+**Seguridad**: solo herramientas registradas se ejecutan. Todas son solo lectura (SELECT, sin INSERT/UPDATE/DELETE). Loop limitado a 3 rondas máximo.
 
-- **Rate limiting**: 30 mensajes por minuto por sesión (protección contra abuso)
-- **Normalización**: `_normalize_message()` elimina emojis, acentos y caracteres especiales antes del matching
-- **Prioridad de intenciones**: `urgencia > cita > producto > ubicación/horario > bienvenida > fallback`
-- **Datos reales**: Ubicación y teléfono desde `ConfiguracionClinica.get_config()`, productos desde `Producto.objects`, citas desde `Disponibilidad` no ocupadas
-- **Personalización**: Usuarios autenticados ven su nombre, mascotas y citas programadas en el saludo
-- **Widget**: Alpine.js con burbuja flotante, funcionando tanto en `base.html` como en `landing.html`
+### Fase 4 — Análisis Multimodal de Imágenes
+El chatbot acepta **fotos de mascotas** para análisis visual con `phi-4-multimodal-instruct`:
+- Botón 📷 en el widget con preview y validación de 4 MB
+- Timeout exclusivo de 30s para inferencia visual
+- Aviso de privacidad: "Las imágenes se envían a un servicio de IA externo"
+- La imagen es efímera: no se almacena en disco ni en base de datos
+
+### Características técnicas del asistente
+
+- **Rate limiting**: 30 mensajes por minuto por sesión
+- **Offline-safe**: si NIM no responde, el sistema degrada gracefulmente al fallback de reglas
+- **Timeout diferenciado**: 15s para texto, 30s para imágenes
+- **API key** gestionada vía `.env` + `python-dotenv` (nunca en código)
+- **Modelos**: `nemotron-mini-4b-instruct` (texto/tools) + `phi-4-multimodal-instruct` (imágenes)
+- **62 tests**: unitarios, integración, regresión — cobertura completa de todos los caminos (éxito, timeout, error HTTP, fallback, tools desconocidas, imágenes)
 
 ---
 
@@ -252,8 +267,9 @@ Los productos y servicios usan **soft delete** (`esta_activo=False`) en lugar de
 | **Autenticación** | Django AUTH_USER_MODEL personalizado (email como USERNAME_FIELD) |
 | **Autorización** | Modelo Rol personalizado + decoradores por rol |
 | **Sesiones** | Django Sessions (carrito de compras + rate limiting del chatbot) |
-| **Chatbot** | Rule-based con normalización de texto y consultas DB en tiempo real |
+| **Chatbot / IA** | Rule-based + NVIDIA NIM (nemotron-mini-4b-instruct + phi-4-multimodal-instruct) |
 | **Notificaciones** | Modelado con helpers `notify()`/`notify_role()` e inyección vía context processor |
+| **Variables de entorno** | python-dotenv (API keys en `.env`, nunca en código) |
 | **Zona Horaria** | America/Bogota (timezone.localdate()) |
 
 ---
@@ -266,9 +282,14 @@ huellitas_alegres/
 │   ├── models.py            # Disponibilidad, Cita (estados: Programada, Atendida, Cancelada)
 │   ├── forms.py             # DisponibilidadForm, CitaForm, SolicitarCitaForm, ReprogramarCitaForm
 │   └── views.py             # Dashboard vet, CRUD citas, solicitar_cita (acepta ?servicio_id=)
-├── chatbot/                 # Chatbot de Reglas
-│   ├── views.py             # procesar_chat(), _detect_intent(), _normalize_message(), _search_products()
-│   └── tests.py             # 21 tests: detección de intenciones, flujo 3 niveles, rate limiting
+├── chatbot/                 # Asistente Virtual Híbrido (Reglas + NVIDIA NIM)
+│   ├── views.py             # procesar_chat(), _detect_intent(), hybrid dispatch, image routing
+│   ├── services/            # Capa de servicios de IA
+│   │   ├── nim_client.py    # NimClient: HTTP client, send(), send_with_tools(), send_image()
+│   │   ├── nim_formatter.py # NimResponseFormatter: garantiza {response, quick_replies}
+│   │   └── tools.py         # 4 tool schemas + execute_tool() + handler registry
+│   ├── templates/chatbot/   # chatbot_widget.html (Alpine.js + cámara + validación 4MB)
+│   └── tests.py             # 62 tests: reglas, NIM, tools, imágenes, estado de conversación
 ├── entregas/                # Pedidos y Domicilio
 │   ├── models.py            # Pedido (estados), PedidoItem, asignación round-robin
 │   └── views.py             # Dashboard, detalle, torre de control, comprobante PDF
@@ -412,13 +433,16 @@ python manage.py test tienda
 python manage.py test notificaciones
 ```
 
-El proyecto cuenta con **más de 50 pruebas** cubriendo:
+El proyecto cuenta con **62 pruebas** cubriendo:
 - Chatbot: detección de intenciones, flujo de 3 niveles de productos, rate limiting, respuestas por intención
+- NVIDIA NIM: NimClient HTTP, NimResponseFormatter, hybrid dispatch, estado de conversación AI
+- RAG: inyección de contexto real, prevención de alucinaciones
+- Function Calling: 4 tools, ejecución segura, herramientas desconocidas, argumentos malformados
+- Imágenes: ruta multimodal, timeout 30s, errores de conexión, fallback sin API key
 - Tienda: catálogo, carrito, checkout, asignación de domiciliario
 - Notificaciones: creación, marcado como leída, conteo por rol
 - Servicios: modelo, formulario, categorías
 - Agenda: formulario de cita, disponibilidades, validaciones
-- Y más
 
 ---
 
@@ -434,20 +458,18 @@ Este proyecto es de uso educativo como parte del programa de formación del SENA
 
 ---
 
-## 🚀 Futuras Implementaciones / Roadmap de Innovación
+## 🚀 Roadmap de Innovación
 
-### 🤖 Evolución del Chatbot: de Reglas a Inteligencia Artificial
+### ✅ Completado — Asistente Virtual Híbrido con NVIDIA NIM
 
-En la fase actual de evaluación, el sistema cuenta con un **Chatbot basado en Reglas** (Rule-based Chatbot) que opera localmente de manera eficiente, sin costos de infraestructura y con consulta directa a la base de datos. Este enfoque garantiza respuestas rápidas, predecibles y 100% trazables, ideales para el entorno de producción actual.
+| Fase | Funcionalidad | Modelo | Estado |
+|------|--------------|--------|--------|
+| 1 | Hybrid Dispatcher + Estado de Conversación | `nemotron-mini-4b-instruct` | ✅ |
+| 2 | RAG — Contexto real de BD (anti-alucinaciones) | `nemotron-mini-4b-instruct` | ✅ |
+| 3 | Function Calling — 4 tools nativas | `nemotron-mini-4b-instruct` | ✅ |
+| 4 | Análisis Multimodal de Imágenes | `phi-4-multimodal-instruct` | ✅ |
 
-Como **visión de escalabilidad tecnológica**, se tiene planificada la migración hacia un **Asistente Virtual con Inteligencia Artificial Avanzada**. La arquitectura objetivo integra:
-
-- **NVIDIA NIM** (NVIDIA Inference Microservices): infraestructura de inferencia optimizada para despliegue de modelos de lenguaje en producción.
-- **Modelos de última generación**: integración con modelos de razonamiento avanzado (como `deepseek-v4-pro` o equivalentes) a través de los endpoints de desarrollo de NVIDIA NIM, consumidos mediante la librería de OpenAI como interfaz de comunicación.
-- **Procesamiento de lenguaje natural complejo**: el asistente podrá interpretar consultas ambiguas, mantener contexto conversacional y resolver dudas que el sistema basado en reglas no cubre, como preguntas abiertas, comparaciones de productos o recomendaciones personalizadas basadas en el historial del cliente.
-- **Conexión por APIs seguras**: el asistente se integrará al ecosistema del software mediante endpoints protegidos (autenticación, rate limiting, validación de entrada), manteniendo la trazabilidad y seguridad del sistema actual.
-
-Esta evolución elevará la experiencia de usuario (UX) a un nivel de **producción comercial**, posicionando a Huellitas Alegres como una clínica veterinaria con atención digital inteligente de última generación.
+El asistente ahora **piensa, consulta la base de datos, responde con datos reales y analiza imágenes**. La arquitectura híbrida mantiene las reglas locales para consultas frecuentes (gratis, instantáneas) y deriva a IA solo cuando es necesario.
 
 ### 📧 Notificaciones por Email (Parcialmente Implementadas)
 
