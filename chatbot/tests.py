@@ -501,3 +501,65 @@ class AIConversationStateTests(TestCase):
         self._post('ubicacion')
         # Flag must be reset after rule engine takes over
         self.assertFalse(self.client.session['_ai_conversation_active'])
+
+
+class RAGContextTests(TestCase):
+    """Test that NIM receives real DB context to prevent hallucinations."""
+
+    def test_build_context_returns_string_with_clinic_info(self):
+        """_build_nim_context() returns non-empty string with clinic data."""
+        from chatbot.views import _build_nim_context
+        ctx = _build_nim_context()
+        self.assertIsInstance(ctx, str)
+        self.assertGreater(len(ctx), 50)
+        self.assertIn('Huellitas', ctx)
+
+    def test_build_context_includes_product_categories(self):
+        """_build_nim_context() includes real product category names."""
+        from chatbot.views import _build_nim_context
+        ctx = _build_nim_context()
+        self.assertIn('Productos por categoría', ctx)
+
+    @patch('chatbot.views.NimClient')
+    def test_nim_receives_context_parameter(self, MockNimClient):
+        """NimClient.send() is called with context= containing real DB data."""
+        mock_instance = MagicMock()
+        mock_instance.send.return_value = (
+            '{"response": "OK", "quick_replies": ["ok"]}'
+        )
+        MockNimClient.return_value = mock_instance
+
+        self.client = Client()
+        self.client.post(
+            '/chatbot/procesar/',
+            data=json.dumps({'message': 'que_servicios_tienen'}),
+            content_type='application/json',
+        )
+
+        # Verify send() was called with context parameter
+        call_kwargs = mock_instance.send.call_args
+        self.assertIn('context', call_kwargs[1])
+        context = call_kwargs[1]['context']
+        self.assertIsInstance(context, str)
+        self.assertGreater(len(context), 50)
+
+    @patch('chatbot.views.NimClient')
+    def test_system_prompt_forces_context_only_no_invention(self, MockNimClient):
+        """System prompt instructs model to use ONLY provided context, never invent."""
+        mock_instance = MagicMock()
+        mock_instance.send.return_value = (
+            '{"response": "OK", "quick_replies": ["ok"]}'
+        )
+        MockNimClient.return_value = mock_instance
+
+        self.client = Client()
+        self.client.post(
+            '/chatbot/procesar/',
+            data=json.dumps({'message': 'que_ofrecen'}),
+            content_type='application/json',
+        )
+
+        call_kwargs = mock_instance.send.call_args
+        system_prompt = call_kwargs[0][1]  # second positional arg
+        self.assertIn('EXCLUSIVAMENTE', system_prompt)
+        self.assertIn('NUNCA inventes', system_prompt)

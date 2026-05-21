@@ -24,6 +24,61 @@ from chatbot.services.nim_formatter import NimResponseFormatter
 
 
 # ──────────────────────────────────────────────
+# NIM context builder — injects real DB data
+# into the AI prompt to prevent hallucinations.
+# ──────────────────────────────────────────────
+
+def _build_nim_context():
+    """Build a concise context block with REAL data from the database.
+
+    This is injected as a second system message so the model knows
+    exactly what products, services, and clinic info actually exist.
+    """
+    info = _get_clinic_info()
+
+    # Product categories with counts
+    cat_labels = dict(CATEGORIAS)
+    cat_counts = (
+        Producto.objects
+        .filter(esta_activo=True, cantidad_stock__gt=0)
+        .values_list('categoria', flat=True)
+    )
+    cat_summary = {}
+    for cat in cat_counts:
+        cat_summary[cat_labels.get(cat, cat)] = cat_summary.get(cat_labels.get(cat, cat), 0) + 1
+
+    # Services
+    try:
+        from servicios.models import Servicio
+        servicios_activos = list(
+            Servicio.objects.values_list('nombre', flat=True)
+        )
+    except Exception:
+        servicios_activos = []
+
+    lines = [
+        f"Clínica: {info['nombre']}",
+        f"Dirección: {info['direccion']}",
+        f"Horario: Lun-Vie 7AM-7PM, Sáb 8AM-2PM, Dom cerrado",
+        "",
+        "Productos por categoría:",
+    ]
+    for cat, count in sorted(cat_summary.items()):
+        lines.append(f"  - {cat}: {count} productos")
+    lines.append(f"  Total: {sum(cat_summary.values())} productos activos")
+
+    if servicios_activos:
+        lines.append("")
+        lines.append(f"Servicios disponibles ({len(servicios_activos)}):")
+        for sv in servicios_activos[:15]:
+            lines.append(f"  - {sv}")
+
+    lines.append("")
+    lines.append("IMPORTANTE: solo menciona productos, servicios y datos que aparezcan en esta lista.")
+    return '\n'.join(lines)
+
+
+# ──────────────────────────────────────────────
 # Clinic info — pulled from DB (ConfiguracionClinica model)
 # Horarios remain static (not configurable from admin).
 # ──────────────────────────────────────────────
@@ -514,13 +569,18 @@ def procesar_chat(request):
                 timeout=settings.NVIDIA_NIM_TIMEOUT,
             )
             system_prompt = (
-                "Eres un asistente de la clínica veterinaria Huellitas Alegres. "
-                "Responde en español de forma amable y concisa. "
+                "Eres el asistente virtual de la clínica veterinaria Huellitas Alegres. "
+                "Responde en español de forma amable, concisa y profesional. "
+                "Usa EXCLUSIVAMENTE la información proporcionada en el contexto del sistema. "
+                "Si te preguntan algo que no aparece en el contexto, di que no tienes esa "
+                "información y sugiere consultar directamente en la clínica. "
+                "NUNCA inventes productos, servicios, precios ni especialidades. "
                 "Siempre responde en formato JSON con la estructura "
                 '{"response": "tu respuesta aquí", "quick_replies": ["sugerencia1", "sugerencia2"]}. '
                 "No incluyas texto fuera del JSON."
             )
-            raw_text = nim_client.send(message, system_prompt)
+            context = _build_nim_context()
+            raw_text = nim_client.send(message, system_prompt, context=context)
             formatted = NimResponseFormatter.parse(raw_text)
             response = formatted['response']
             quick_replies = formatted['quick_replies']
