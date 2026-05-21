@@ -377,6 +377,9 @@ def procesar_chat(request):
         { "response": "💊 Productos encontrados:...", "quick_replies": [...] }
     """
     # ── Rate limit (session-based) ──
+    # NOTE: This is not atomic — concurrent requests can race the
+    # read-check-append cycle. Adequate for normal use; for production
+    # with high concurrency, use Redis-backed counters or middleware.
     chat_history = request.session.get('_chat_timestamps', [])
     now = time.time()
     chat_history = [ts for ts in chat_history if now - ts < _CHAT_WINDOW_SECONDS]
@@ -391,6 +394,7 @@ def procesar_chat(request):
     try:
         data = json.loads(request.body)
         message = data.get('message', '').strip()
+        message = message[:10000]  # cap to prevent excessively long prompts
         image_b64 = data.get('image', '').strip()
     except (json.JSONDecodeError, AttributeError):
         return JsonResponse({
@@ -453,7 +457,13 @@ def procesar_chat(request):
                 'response': 'No puedo analizar imágenes en este momento. ¿Podrías describir tu consulta con texto?',
                 'quick_replies': ['📅 Citas', '💊 Productos', '📍 Ubicación'],
             })
-        except Exception as e:
+        except requests.exceptions.HTTPError as e:
+            print(f'[NIM IMAGE HTTP] {e.response.status_code if e.response else "?"}')
+            return JsonResponse({
+                'response': STATIC_RESPONSES['fallback'],
+                'quick_replies': ['📅 Citas', '💊 Productos', '📍 Ubicación', '🚨 Urgencias'],
+            })
+        except (ValueError, TypeError, json.JSONDecodeError, AttributeError) as e:
             print(f'[NIM IMAGE ERROR] {type(e).__name__}')
             return JsonResponse({
                 'response': STATIC_RESPONSES['fallback'],
@@ -627,6 +637,8 @@ def procesar_chat(request):
     else:
         # ── Hybrid dispatch: try NIM, fall back to static fallback ──
         try:
+            if not settings.NVIDIA_NIM_API_KEY:
+                raise ValueError('NIM API key not configured')
             nim_client = NimClient(
                 api_key=settings.NVIDIA_NIM_API_KEY,
                 base_url=settings.NVIDIA_NIM_BASE_URL,

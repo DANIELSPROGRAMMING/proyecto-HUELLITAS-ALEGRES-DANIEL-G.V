@@ -129,7 +129,7 @@ def execute_tool(name: str, arguments: dict) -> str:
     try:
         return handler(arguments)
     except Exception as e:
-        return f"Error al ejecutar '{name}': {type(e).__name__} — {e}"
+        return f"Error al ejecutar '{name}': {type(e).__name__}"
 
 
 # ─────────────────────────────────────────────

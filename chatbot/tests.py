@@ -743,7 +743,7 @@ class ImagePathTests(TestCase):
     def test_image_without_api_key_falls_back(self, MockNimClient):
         """Image without API key should return fallback (test simulates no key)."""
         mock_instance = MagicMock()
-        mock_instance.send_image.side_effect = Exception("No API key")
+        mock_instance.send_image.side_effect = ValueError("No API key")
         MockNimClient.return_value = mock_instance
 
         # This test verifies the except Exception block for images
