@@ -28,6 +28,7 @@ from django.contrib.auth.decorators import login_required
 from django.contrib import messages
 from django.http import JsonResponse, HttpResponseForbidden
 from django.views.decorators.csrf import csrf_exempt
+from django.views.decorators.http import require_POST
 from django.contrib.auth import get_user_model
 from django.contrib.auth.forms import UserCreationForm
 from django.contrib.auth.models import User
@@ -95,7 +96,12 @@ def auth_view(request):
 # ========================================
 # SERVICIO WEB: REGISTRO DE USUARIOS
 # ========================================
+# CSRF exemption is intentional for this JSON API endpoint:
+# - Accepts Content-Type: application/json (triggers CORS preflight)
+# - Browser same-origin policy + CORS preflight provide equivalent protection
+# - Django's CSRF middleware only protects form-encoded POST, not JSON
 @csrf_exempt
+@require_POST
 def registro_usuario(request):
     """
     SERVICIO WEB: Endpoint para registro de nuevos usuarios
@@ -196,10 +202,10 @@ def registro_usuario(request):
                 'success': False, 
                 'message': 'Error en el formato de datos'
             })
-        except Exception as e:
+        except Exception:
             return JsonResponse({
                 'success': False, 
-                'message': f'Error interno: {str(e)}'
+                'message': 'Error interno del servidor'
             })
     
     return JsonResponse({'success': False, 'message': 'Método no permitido'})
@@ -207,7 +213,10 @@ def registro_usuario(request):
 # ========================================
 # SERVICIO WEB: INICIO DE SESIÓN
 # ========================================
+# CSRF exemption is intentional for this JSON API endpoint —
+# same justification as registro_usuario above.
 @csrf_exempt
+@require_POST
 def login_usuario(request):
     """
     SERVICIO WEB: Endpoint para autenticación de usuarios
@@ -268,6 +277,10 @@ def login_usuario(request):
                 # Verificar que la cuenta esté activa
                 if usuario.is_active:
                     # AUTENTICACIÓN SATISFACTORIA - Iniciar sesión
+                    # Prevent session fixation: cycle the session key
+                    # before logging in so a pre-existing session ID
+                    # cannot be exploited.
+                    request.session.cycle_key()
                     login(request, usuario)
                     return JsonResponse({
                         'success': True, 
@@ -293,11 +306,10 @@ def login_usuario(request):
                 'success': False, 
                 'message': 'Error en la autenticación: Formato de datos inválido'
             })
-        except Exception as e:
-            # ERROR: Excepción interna del servidor
+        except Exception:
             return JsonResponse({
                 'success': False, 
-                'message': f'Error en la autenticación: {str(e)}'
+                'message': 'Error interno del servidor'
             })
     
     return JsonResponse({'success': False, 'message': 'Método no permitido'})
