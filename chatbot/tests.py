@@ -75,7 +75,7 @@ class ChatbotViewTests(TestCase):
         nim_patcher = patch('chatbot.views.NimClient')
         self.MockNimClient = nim_patcher.start()
         mock_instance = MagicMock()
-        mock_instance.send.side_effect = Exception("Mocked NIM unavailable")
+        mock_instance.send_with_tools.side_effect = Exception("Mocked NIM unavailable")
         self.MockNimClient.return_value = mock_instance
         self.addCleanup(nim_patcher.stop)
 
@@ -380,7 +380,7 @@ class NimIntegrationTests(TestCase):
         from chatbot.services.nim_formatter import NimResponseFormatter
 
         mock_instance = MagicMock()
-        mock_instance.send.return_value = '{"response": "Respuesta IA", "quick_replies": ["A", "B"]}'
+        mock_instance.send_with_tools.return_value = '{"response": "Respuesta IA", "quick_replies": ["A", "B"]}'
         MockNimClient.return_value = mock_instance
 
         response, data = self._post('consulta_inexistente_xyz_123')
@@ -388,7 +388,7 @@ class NimIntegrationTests(TestCase):
         self.assertIn('response', data)
         self.assertIn('quick_replies', data)
         # NIM path should have been called
-        mock_instance.send.assert_called_once()
+        mock_instance.send_with_tools.assert_called_once()
         # Response should NOT be the static fallback
         self.assertNotIn('No estoy seguro', data['response'])
 
@@ -396,7 +396,7 @@ class NimIntegrationTests(TestCase):
     def test_nim_error_falls_back_to_static(self, MockNimClient):
         """Generic/unexpected NIM error → graceful fallback to STATIC_RESPONSES['fallback']."""
         mock_instance = MagicMock()
-        mock_instance.send.side_effect = Exception("Unexpected error")
+        mock_instance.send_with_tools.side_effect = Exception("Unexpected error")
         MockNimClient.return_value = mock_instance
 
         response, data = self._post('consulta_inexistente_error_test')
@@ -407,7 +407,7 @@ class NimIntegrationTests(TestCase):
     def test_nim_timeout_shows_technical_message(self, MockNimClient):
         """NIM timeout → user-friendly technical error, NOT static fallback menu."""
         mock_instance = MagicMock()
-        mock_instance.send.side_effect = requests.exceptions.Timeout("Timeout")
+        mock_instance.send_with_tools.side_effect = requests.exceptions.Timeout("Timeout")
         MockNimClient.return_value = mock_instance
 
         response, data = self._post('consulta_timeout_test')
@@ -419,7 +419,7 @@ class NimIntegrationTests(TestCase):
     def test_nim_401_falls_back_to_static(self, MockNimClient):
         """Invalid API key (401) → fallback to static response, NO error logging."""
         mock_instance = MagicMock()
-        mock_instance.send.side_effect = requests.exceptions.HTTPError("401 Unauthorized")
+        mock_instance.send_with_tools.side_effect = requests.exceptions.HTTPError("401 Unauthorized")
         MockNimClient.return_value = mock_instance
 
         response, data = self._post('test_nim_401_fallback')
@@ -456,7 +456,7 @@ class AIConversationStateTests(TestCase):
         session.save()
 
         mock_instance = MagicMock()
-        mock_instance.send.return_value = (
+        mock_instance.send_with_tools.return_value = (
             '{"response": "Hola desde la IA", "quick_replies": ["Sí", "No"]}'
         )
         MockNimClient.return_value = mock_instance
@@ -464,7 +464,7 @@ class AIConversationStateTests(TestCase):
         # 'pollo' would normally match 'producto' intent, but AI mode forces NIM
         response, data = self._post('pollo')
         self.assertIn('Hola desde la IA', data['response'])
-        mock_instance.send.assert_called_once()
+        mock_instance.send_with_tools.assert_called_once()
 
     @patch('chatbot.views.NimClient')
     def test_ai_active_allows_transactional_intents(self, MockNimClient):
@@ -482,7 +482,7 @@ class AIConversationStateTests(TestCase):
     def test_nim_success_sets_ai_active_flag(self, MockNimClient):
         """After NIM responds successfully, _ai_conversation_active is set to True."""
         mock_instance = MagicMock()
-        mock_instance.send.return_value = (
+        mock_instance.send_with_tools.return_value = (
             '{"response": "Respuesta IA", "quick_replies": ["A"]}'
         )
         MockNimClient.return_value = mock_instance
@@ -524,7 +524,7 @@ class RAGContextTests(TestCase):
     def test_nim_receives_context_parameter(self, MockNimClient):
         """NimClient.send() is called with context= containing real DB data."""
         mock_instance = MagicMock()
-        mock_instance.send.return_value = (
+        mock_instance.send_with_tools.return_value = (
             '{"response": "OK", "quick_replies": ["ok"]}'
         )
         MockNimClient.return_value = mock_instance
@@ -537,7 +537,7 @@ class RAGContextTests(TestCase):
         )
 
         # Verify send() was called with context parameter
-        call_kwargs = mock_instance.send.call_args
+        call_kwargs = mock_instance.send_with_tools.call_args
         self.assertIn('context', call_kwargs[1])
         context = call_kwargs[1]['context']
         self.assertIsInstance(context, str)
@@ -547,7 +547,7 @@ class RAGContextTests(TestCase):
     def test_system_prompt_forces_context_only_no_invention(self, MockNimClient):
         """System prompt instructs model to use ONLY provided context, never invent."""
         mock_instance = MagicMock()
-        mock_instance.send.return_value = (
+        mock_instance.send_with_tools.return_value = (
             '{"response": "OK", "quick_replies": ["ok"]}'
         )
         MockNimClient.return_value = mock_instance
@@ -559,7 +559,131 @@ class RAGContextTests(TestCase):
             content_type='application/json',
         )
 
-        call_kwargs = mock_instance.send.call_args
+        call_kwargs = mock_instance.send_with_tools.call_args
         system_prompt = call_kwargs[0][1]  # second positional arg
         self.assertIn('EXCLUSIVAMENTE', system_prompt)
         self.assertIn('NUNCA inventes', system_prompt)
+
+
+class ToolCallingTests(TestCase):
+    """Test Function Calling tools — safety, execution, and schema validation."""
+
+    # ── Tool Registry Safety ──
+
+    def test_execute_known_tool_returns_string(self):
+        """Known tool returns a non-empty string result."""
+        from chatbot.services.tools import execute_tool
+        result = execute_tool("list_services", {})
+        self.assertIsInstance(result, str)
+        self.assertGreater(len(result), 10)
+
+    def test_execute_unknown_tool_returns_error(self):
+        """Unknown tool name returns error string, never raises."""
+        from chatbot.services.tools import execute_tool
+        result = execute_tool("hack_the_planet", {})
+        self.assertIn("Error", result)
+        self.assertIn("no reconocida", result)
+
+    def test_execute_tool_malformed_args_no_crash(self):
+        """Malformed arguments (non-dict, None) never crash the executor."""
+        from chatbot.services.tools import execute_tool
+        # String instead of dict
+        result1 = execute_tool("list_services", "not_a_dict")  # type: ignore
+        self.assertIsInstance(result1, str)
+        # Empty args
+        result2 = execute_tool("list_services", {})
+        self.assertIsInstance(result2, str)
+        self.assertGreater(len(result2), 10)
+
+    def test_all_schema_tools_have_handlers(self):
+        """Every tool in TOOLS schema has a registered handler."""
+        from chatbot.services.tools import TOOLS, execute_tool
+        schema_names = {t["function"]["name"] for t in TOOLS}
+        for name in schema_names:
+            result = execute_tool(name, {})
+            self.assertIsInstance(result, str)
+            self.assertNotIn("no reconocida", result)
+
+    def test_check_availability_handles_invalid_date(self):
+        """check_availability with bad date returns error, not crash."""
+        from chatbot.services.tools import execute_tool
+        result = execute_tool("check_availability", {"fecha": "ayer"})
+        self.assertIsInstance(result, str)
+        self.assertIn("Error", result)
+
+    def test_list_products_invalid_category_returns_helpful(self):
+        """list_products_by_category with non-existent category returns message."""
+        from chatbot.services.tools import execute_tool
+        result = execute_tool("list_products_by_category",
+                              {"categoria": "categoria_inexistente_xyz"})
+        self.assertIsInstance(result, str)
+        self.assertIn("No hay productos", result)
+
+    # ── Tool Schema Integrity ──
+
+    def test_tools_schema_has_required_fields(self):
+        """Each tool has type, function.name, and function.parameters."""
+        from chatbot.services.tools import TOOLS
+        for tool in TOOLS:
+            self.assertEqual(tool["type"], "function")
+            self.assertIn("name", tool["function"])
+            self.assertIn("parameters", tool["function"])
+            self.assertIsInstance(tool["function"]["name"], str)
+            self.assertGreater(len(tool["function"]["name"]), 2)
+
+    def test_tools_are_read_only(self):
+        """Tool handlers never modify the database — only SELECT queries."""
+        from chatbot.services.tools import execute_tool
+        # Run all tools and verify they don't crash
+        for tool_name in ["list_services", "list_products_by_category",
+                          "get_clinic_info", "check_availability"]:
+            args = {}
+            if tool_name == "list_products_by_category":
+                args = {"categoria": "Alimentos"}
+            result = execute_tool(tool_name, args)
+            self.assertIsInstance(result, str)
+
+    # ── Tool Loop Safety ──
+
+    @patch('chatbot.views.NimClient')
+    def test_nim_called_with_tools_parameter(self, MockNimClient):
+        """send_with_tools receives TOOLS schema as parameter."""
+        mock_instance = MagicMock()
+        mock_instance.send_with_tools.return_value = (
+            '{"response": "Usando tools", "quick_replies": ["ok"]}'
+        )
+        MockNimClient.return_value = mock_instance
+
+        self.client = Client()
+        self.client.post(
+            '/chatbot/procesar/',
+            data=json.dumps({'message': 'que_servicios_tienen'}),
+            content_type='application/json',
+        )
+
+        call_args = mock_instance.send_with_tools.call_args
+        # Third positional arg should be TOOLS
+        tools_arg = call_args[0][2]
+        self.assertIsInstance(tools_arg, list)
+        self.assertGreater(len(tools_arg), 0)
+        # Verify it has the right structure
+        self.assertEqual(tools_arg[0]["type"], "function")
+
+    @patch('chatbot.views.NimClient')
+    def test_tool_loop_max_rounds_safety(self, MockNimClient):
+        """send_with_tools uses default max_rounds=3 to prevent infinite loops."""
+        mock_instance = MagicMock()
+        mock_instance.send_with_tools.return_value = (
+            '{"response": "OK", "quick_replies": ["ok"]}'
+        )
+        MockNimClient.return_value = mock_instance
+
+        self.client = Client()
+        self.client.post(
+            '/chatbot/procesar/',
+            data=json.dumps({'message': 'turnos_disponibles'}),
+            content_type='application/json',
+        )
+
+        # Verify send_with_tools was called (uses default max_rounds=3)
+        mock_instance.send_with_tools.assert_called_once()

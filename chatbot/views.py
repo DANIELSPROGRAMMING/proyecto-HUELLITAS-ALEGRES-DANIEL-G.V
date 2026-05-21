@@ -21,6 +21,7 @@ from productos.models import Producto, CATEGORIAS
 from agenda.models import Disponibilidad, Cita
 from chatbot.services.nim_client import NimClient
 from chatbot.services.nim_formatter import NimResponseFormatter
+from chatbot.services.tools import TOOLS, execute_tool
 
 
 # ──────────────────────────────────────────────
@@ -580,7 +581,11 @@ def procesar_chat(request):
                 "No incluyas texto fuera del JSON."
             )
             context = _build_nim_context()
-            raw_text = nim_client.send(message, system_prompt, context=context)
+            raw_text = nim_client.send_with_tools(
+                message, system_prompt, TOOLS,
+                context=context,
+                tool_executor=execute_tool,
+            )
             formatted = NimResponseFormatter.parse(raw_text)
             response = formatted['response']
             quick_replies = formatted['quick_replies']
