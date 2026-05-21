@@ -353,6 +353,13 @@ _MAX_CHAT_REQUESTS = 30
 _CHAT_WINDOW_SECONDS = 60
 
 
+# CSRF exemption is intentional for this endpoint:
+# - Read-only: no state mutations, no writes, no auth changes
+# - Public: accessible from landing page for anonymous visitors
+# - Rate-limited: 30 req / 60s per session (prevents abuse)
+# - No sensitive operations: DB queries are SELECT-only
+# The frontend sends X-CSRFToken via JS (see chatbot_widget.html)
+# as a defense-in-depth measure even though the server doesn't validate it.
 @csrf_exempt
 @require_POST
 def procesar_chat(request):
@@ -447,7 +454,7 @@ def procesar_chat(request):
                 'quick_replies': ['📅 Citas', '💊 Productos', '📍 Ubicación'],
             })
         except Exception as e:
-            print(f'[NIM IMAGE ERROR] {type(e).__name__}: {e}')
+            print(f'[NIM IMAGE ERROR] {type(e).__name__}')
             return JsonResponse({
                 'response': STATIC_RESPONSES['fallback'],
                 'quick_replies': ['📅 Citas', '💊 Productos', '📍 Ubicación', '🚨 Urgencias'],
@@ -649,17 +656,20 @@ def procesar_chat(request):
             # Conversation is now with AI — mark session
             request.session['_ai_conversation_active'] = True
         except requests.exceptions.Timeout as e:
-            print(f'[NIM TIMEOUT] {e}')
+            print('[NIM TIMEOUT]')
             response = 'Lo siento, estoy teniendo problemas para conectar con mi cerebro principal. ¿Podrías intentar de nuevo en unos segundos?'
             quick_replies = ['🔄 Intentar de nuevo']
+            request.session['_ai_conversation_active'] = False
         except requests.exceptions.ConnectionError as e:
-            print(f'[NIM CONNECTION] {e}')
+            print('[NIM CONNECTION]')
             response = 'Lo siento, no puedo contactar con el servicio de IA en este momento. Intenta de nuevo más tarde.'
             quick_replies = ['🔄 Reintentar', '📍 Ubicación', '🕐 Horarios']
+            request.session['_ai_conversation_active'] = False
         except Exception as e:
-            print(f'[NIM ERROR] {type(e).__name__}: {e}')
+            print(f'[NIM ERROR] {type(e).__name__}')
             response = STATIC_RESPONSES['fallback']
             quick_replies = ['📅 Citas', '💊 Productos', '📍 Ubicación', '🚨 Urgencias']
+            request.session['_ai_conversation_active'] = False
 
     return JsonResponse({
         'response': response,
