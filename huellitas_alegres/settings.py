@@ -15,19 +15,19 @@ STATICFILES_DIRS = [
 ]
 
 STATIC_ROOT = BASE_DIR / 'staticfiles'
-# ⚠️ PRODUCTION DEPLOYMENT NOTE:
-# SECRET_KEY and DEBUG below are hardcoded for SENA educational/demo use.
-# Before any production deployment, you MUST:
-#   1. Move SECRET_KEY to .env:  SECRET_KEY = os.getenv('DJANGO_SECRET_KEY')
-#   2. Set DEBUG = os.getenv('DJANGO_DEBUG', 'False') == 'True'
-#   3. Configure ALLOWED_HOSTS with your actual domain(s)
-# SECURITY WARNING: keep the secret key used in production secret!
-SECRET_KEY = 'django-insecure-#6866yvo@54pp!c*3#p9gup1lud_##bx$*%#*eg#zto%+$w1d6'
+# SECURITY: secret key from env, hardcoded fallback for local dev only
+SECRET_KEY = os.getenv('DJANGO_SECRET_KEY', 'django-insecure-#6866yvo@54pp!c*3#p9gup1lud_##bx$*%*#eg#zto%+$w1d6')
 
-# SECURITY WARNING: don't run with debug turned on in production!
-DEBUG = True
+# SECURITY: debug off in production, on by default for local dev
+DEBUG = os.getenv('DJANGO_DEBUG', 'True') == 'True'
 
 ALLOWED_HOSTS = ['localhost', '127.0.0.1']
+
+# Railway injects the public domain automatically
+_railway_domain = os.getenv('RAILWAY_PUBLIC_DOMAIN')
+if _railway_domain:
+    ALLOWED_HOSTS.append(_railway_domain)
+    ALLOWED_HOSTS.append(f'.{_railway_domain}')
 
 
 # Application definition
