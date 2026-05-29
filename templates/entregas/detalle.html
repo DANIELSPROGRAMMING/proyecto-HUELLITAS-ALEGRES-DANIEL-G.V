@@ -22,6 +22,70 @@
         {% endif %}
     </div>
 
+    {# ─────────────────── STEPPER — PROGRESS INDICATOR ─────────────────── #}
+    {% if pedido.estado != 'cancelado' %}
+    <div class="bg-surface-container-lowest rounded-xl border border-outline-variant/10 shadow-[0_4px_20px_rgba(0,0,0,0.03)] p-4 sm:p-6 mb-6">
+        <h4 class="font-label-lg text-label-lg text-on-surface mb-4 flex items-center gap-2">
+            <span class="material-symbols-outlined text-primary text-[20px]">route</span> Progreso de Entrega
+        </h4>
+        <div class="flex items-center justify-between">
+            {# Step 1: Pendiente #}
+            <div class="flex flex-col items-center flex-1">
+                <div class="w-10 h-10 rounded-full flex items-center justify-center text-white font-bold text-sm
+                    {% if pedido.estado == 'pendiente' %}bg-[#5e6d33] ring-4 ring-[#5e6d33]/30{% else %}bg-[#5e6d33]{% endif %}">
+                    <span class="material-symbols-outlined text-[20px]">inventory_2</span>
+                </div>
+                <span class="font-caption text-caption text-on-surface mt-2 text-center">Pendiente</span>
+            </div>
+            {# Connector 1→2 #}
+            <div class="flex-1 h-1 mx-1 rounded-full {% if pedido.estado == 'en_camino' or pedido.estado == 'entregado' %}bg-primary{% else %}bg-outline-variant/30{% endif %}"></div>
+            {# Step 2: En Camino #}
+            <div class="flex flex-col items-center flex-1">
+                <div class="w-10 h-10 rounded-full flex items-center justify-center text-white font-bold text-sm
+                    {% if pedido.estado == 'en_camino' %}bg-primary ring-4 ring-primary/30
+                    {% elif pedido.estado == 'entregado' %}bg-primary
+                    {% else %}bg-outline-variant/30 text-on-surface-variant{% endif %}">
+                    <span class="material-symbols-outlined text-[20px]">electric_scooter</span>
+                </div>
+                <span class="font-caption text-caption {% if pedido.estado == 'en_camino' or pedido.estado == 'entregado' %}text-on-surface{% else %}text-on-surface-variant{% endif %} mt-2 text-center">En Camino</span>
+            </div>
+            {# Connector 2→3 #}
+            <div class="flex-1 h-1 mx-1 rounded-full {% if pedido.estado == 'entregado' %}bg-primary{% else %}bg-outline-variant/30{% endif %}"></div>
+            {# Step 3: Entregado #}
+            <div class="flex flex-col items-center flex-1">
+                <div class="w-10 h-10 rounded-full flex items-center justify-center font-bold text-sm
+                    {% if pedido.estado == 'entregado' %}bg-primary text-white ring-4 ring-primary/30
+                    {% else %}bg-outline-variant/30 text-on-surface-variant{% endif %}">
+                    <span class="material-symbols-outlined text-[20px]">check_circle</span>
+                </div>
+                <span class="font-caption text-caption {% if pedido.estado == 'entregado' %}text-on-surface{% else %}text-on-surface-variant{% endif %} mt-2 text-center">Entregado</span>
+            </div>
+        </div>
+    </div>
+    {% else %}
+    {# Cancelado: stepper roto #}
+    <div class="bg-error-container/10 rounded-xl border border-error/20 shadow-[0_4px_20px_rgba(0,0,0,0.03)] p-4 sm:p-6 mb-6">
+        <h4 class="font-label-lg text-label-lg text-on-surface mb-4 flex items-center gap-2">
+            <span class="material-symbols-outlined text-error text-[20px]">route</span> Progreso de Entrega
+        </h4>
+        <div class="flex items-center justify-between">
+            <div class="flex flex-col items-center flex-1">
+                <div class="w-10 h-10 rounded-full flex items-center justify-center text-white font-bold text-sm bg-[#5e6d33]">
+                    <span class="material-symbols-outlined text-[20px]">inventory_2</span>
+                </div>
+                <span class="font-caption text-caption text-on-surface mt-2 text-center">Pendiente</span>
+            </div>
+            <div class="flex-1 h-1 mx-1 rounded-full bg-error/40"></div>
+            <div class="flex flex-col items-center flex-1">
+                <div class="w-10 h-10 rounded-full flex items-center justify-center font-bold text-sm bg-error text-white ring-4 ring-error/30">
+                    <span class="material-symbols-outlined text-[20px]">cancel</span>
+                </div>
+                <span class="font-caption text-caption text-on-surface mt-2 text-center">Cancelado</span>
+            </div>
+        </div>
+    </div>
+    {% endif %}
+
     {# ─────────────────── PEDIDO INFO CARD ─────────────────── #}
     <div class="bg-surface-container-lowest rounded-xl border border-outline-variant/10 shadow-[0_4px_20px_rgba(0,0,0,0.03)] overflow-hidden mb-6
         {% if pedido.estado == 'pendiente' %}border-t-4 border-t-[#5e6d33]{% elif pedido.estado == 'en_camino' %}border-t-4 border-t-primary{% elif pedido.estado == 'entregado' %}border-t-4 border-t-primary{% else %}border-t-4 border-t-error{% endif %}">

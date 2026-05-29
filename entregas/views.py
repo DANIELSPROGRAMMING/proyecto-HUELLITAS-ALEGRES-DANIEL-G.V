@@ -7,6 +7,7 @@ from django.core.paginator import Paginator, EmptyPage, PageNotAnInteger
 from django.http import HttpResponse
 from django.template.loader import render_to_string
 from django.utils import timezone
+from django.db import transaction
 from xhtml2pdf import pisa
 import io
 
@@ -22,18 +23,20 @@ from notificaciones.helpers import notify, notify_role
 def asignar_domiciliario_disponible():
     """Asigna el domiciliario disponible con MENOS pedidos activos (pendiente + en_camino).
     Round-robin justo: el que menos carga tiene recibe el pedido nuevo.
+    Usa select_for_update() en transacción atómica para evitar race conditions.
     Retorna None si no hay domiciliarios disponibles."""
-    domiciliarios = Usuario.objects.filter(
-        rol__nombre='Domiciliario',
-        is_active=True,
-        is_disponible=True,
-    ).annotate(
-        pedidos_activos=Count(
-            'pedidos_como_domiciliario',
-            filter=Q(pedidos_como_domiciliario__estado__in=['pendiente', 'en_camino']),
-        )
-    ).order_by('pedidos_activos', 'id')
-    return domiciliarios.first()
+    with transaction.atomic():
+        domiciliarios = Usuario.objects.select_for_update().filter(
+            rol__nombre='Domiciliario',
+            is_active=True,
+            is_disponible=True,
+        ).annotate(
+            pedidos_activos=Count(
+                'pedidos_como_domiciliario',
+                filter=Q(pedidos_como_domiciliario__estado__in=['pendiente', 'en_camino']),
+            )
+        ).order_by('pedidos_activos', 'id')
+        return domiciliarios.first()
 
 
 @login_required(login_url='/usuarios/login/')
@@ -236,6 +239,14 @@ def crear_pedido(request):
                 else:
                     messages.warning(request, 'No hay domiciliarios disponibles. El pedido quedó sin domiciliario asignado.')
             pedido.save()
+            # Notificar al domiciliario que se le asignó un nuevo pedido
+            if pedido.domiciliario_id:
+                notify(
+                    pedido.domiciliario,
+                    f'📦 Se te ha asignado el Pedido #{pedido.pk}. Revisa tu dashboard de entregas.',
+                    tipo='pedido',
+                    url=f'/entregas/pedido/{pedido.pk}/',
+                )
             formset.instance = pedido
             items = formset.save()
             messages.success(request, f'Pedido #{pedido.pk} creado exitosamente.')
@@ -389,9 +400,25 @@ def torre_control(request):
             pedido = get_object_or_404(Pedido, pk=pedido_pk)
             new_dom = get_object_or_404(Usuario, pk=new_dom_pk, rol__nombre='Domiciliario')
             if pedido.estado in ('pendiente', 'en_camino'):
+                old_dom = pedido.domiciliario
                 pedido.domiciliario = new_dom
                 pedido.save(update_fields=['domiciliario'])
                 messages.success(request, f'Domiciliario de Pedido #{pedido.pk} reasignado a {new_dom.get_full_name()}.')
+                # Notificar al nuevo domiciliario
+                notify(
+                    new_dom,
+                    f'📦 Se te ha asignado el Pedido #{pedido.pk}. Revisa tu dashboard.',
+                    tipo='pedido',
+                    url=f'/entregas/pedido/{pedido.pk}/',
+                )
+                # Notificar al domiciliario anterior si existía
+                if old_dom and old_dom != new_dom:
+                    notify(
+                        old_dom,
+                        f'🔄 El Pedido #{pedido.pk} ha sido reasignado a otro domiciliario.',
+                        tipo='pedido',
+                        url=f'/entregas/pedido/{pedido.pk}/',
+                    )
             else:
                 messages.error(request, 'Solo se puede reasignar pedidos pendientes o en camino.')
         return redirect('entregas:torre_control')
