@@ -107,7 +107,7 @@ def entrada_inventario(request):
                 'Administrador',
                 f"🚨 Alerta de Inventario: '{producto.nombre}' tiene {producto.cantidad_stock} unidades (mínimo: {producto.stock_minimo}). ¡Reabastecer!",
                 tipo='stock',
-                url=f'/productos/producto/{producto.pk}/',
+                url=f'/productos/kardex/{producto.pk}/',
             )
         messages.success(request, f'Entrada de {mov.cantidad} unidades de "{producto.nombre}" registrada.')
         return redirect('productos:lista')

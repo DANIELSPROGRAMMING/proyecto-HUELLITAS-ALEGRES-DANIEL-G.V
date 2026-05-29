@@ -194,7 +194,7 @@ def atender_cita(request, cita_pk):
                     cita_locked.mascota.propietario,
                     f"🩺 La cita de {cita_locked.mascota.nombre} ha sido atendida. Puedes consultar el historial clínico.",
                     tipo='cita',
-                    url=f'/historial/{cita_locked.mascota.pk}/',
+                    url=f'/historial/{historial.pk}/',
                 )
                 messages.success(request, 'Cita atendida e historial creado exitosamente.')
                 return redirect('historial:detalle', pk=historial.pk)
