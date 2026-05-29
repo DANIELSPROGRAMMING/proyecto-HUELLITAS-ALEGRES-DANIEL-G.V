@@ -161,7 +161,7 @@ class ServiciosPDFTests(TestCase):
         response = self.client.get(reverse('reportes:servicios'))
         self.assertEqual(response.status_code, 200)
 
-def test_servicios_pdf_filter_by_categoria(self):
+    def test_servicios_pdf_filter_by_categoria(self):
         self.client.force_login(self.admin)
         response = self.client.get(reverse('reportes:servicios') + '?categoria=consulta')
         self.assertEqual(response.status_code, 200)

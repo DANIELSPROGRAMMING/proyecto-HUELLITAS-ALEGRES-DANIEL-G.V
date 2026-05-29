@@ -164,7 +164,7 @@ def cambiar_estado(request, pk):
             pedido.cliente,
             f"🚚 Tu pedido #{pedido.pk} va en camino hacia tu ubicación.",
             tipo='pedido',
-            url=f'/entregas/pedido/{pedido.pk}/',
+            url=f'/entregas/{pedido.pk}/',
         )
     if nuevo_estado == 'cancelado':
         pedido.incidente_notas = incidente_notas
@@ -179,13 +179,13 @@ def cambiar_estado(request, pk):
             pedido.cliente,
             f"⚠️ Tu pedido #{pedido.pk} ha sido cancelado.",
             tipo='pedido',
-            url=f'/entregas/pedido/{pedido.pk}/',
+            url=f'/entregas/{pedido.pk}/',
         )
         notify_role(
             'Administrador',
             f"⚠️ Pedido #{pedido.pk} cancelado por domiciliario.",
             tipo='pedido',
-            url=f'/entregas/pedido/{pedido.pk}/',
+            url=f'/entregas/{pedido.pk}/',
         )
     if nuevo_estado == 'entregado':
         pedido.fecha_entrega = timezone.now()
@@ -206,13 +206,13 @@ def cambiar_estado(request, pk):
             pedido.cliente,
             f"✅ Tu pedido #{pedido.pk} ha sido entregado exitosamente.",
             tipo='pedido',
-            url=f'/entregas/pedido/{pedido.pk}/',
+            url=f'/entregas/{pedido.pk}/',
         )
         notify_role(
             'Administrador',
             f"📦 Pedido #{pedido.pk} entregado y confirmado por domiciliario.",
             tipo='pedido',
-            url=f'/entregas/pedido/{pedido.pk}/',
+            url=f'/entregas/{pedido.pk}/',
         )
     pedido.save()
 
@@ -245,7 +245,7 @@ def crear_pedido(request):
                     pedido.domiciliario,
                     f'📦 Se te ha asignado el Pedido #{pedido.pk}. Revisa tu dashboard de entregas.',
                     tipo='pedido',
-                    url=f'/entregas/pedido/{pedido.pk}/',
+                    url=f'/entregas/{pedido.pk}/',
                 )
             formset.instance = pedido
             items = formset.save()
@@ -354,7 +354,7 @@ def comprobante_pdf(request, pk):
         return HttpResponse('Error al generar PDF', status=500)
     buf.seek(0)
     response = HttpResponse(buf.read(), content_type='application/pdf')
-    response['Content-Disposition'] = f'filename="comprobante_pedido_{pedido.pk}.pdf"'
+    response['Content-Disposition'] = f'attachment; filename="comprobante_pedido_{pedido.pk}.pdf"'
     return response
 
 
@@ -409,7 +409,7 @@ def torre_control(request):
                     new_dom,
                     f'📦 Se te ha asignado el Pedido #{pedido.pk}. Revisa tu dashboard.',
                     tipo='pedido',
-                    url=f'/entregas/pedido/{pedido.pk}/',
+                    url=f'/entregas/{pedido.pk}/',
                 )
                 # Notificar al domiciliario anterior si existía
                 if old_dom and old_dom != new_dom:
@@ -417,7 +417,7 @@ def torre_control(request):
                         old_dom,
                         f'🔄 El Pedido #{pedido.pk} ha sido reasignado a otro domiciliario.',
                         tipo='pedido',
-                        url=f'/entregas/pedido/{pedido.pk}/',
+                        url=f'/entregas/{pedido.pk}/',
                     )
             else:
                 messages.error(request, 'Solo se puede reasignar pedidos pendientes o en camino.')

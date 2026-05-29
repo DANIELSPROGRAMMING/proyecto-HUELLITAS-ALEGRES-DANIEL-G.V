@@ -398,14 +398,14 @@ def checkout(request):
                 domiciliario,
                 f"📦 ¡Nuevo pedido asignado! Entrega pendiente en {direccion} — Total: ${pedido.total:,.0f} (Pago Contra Entrega).",
                 tipo='pedido',
-                url=f'/entregas/pedido/{pedido.pk}/',
+                url=f'/entregas/{pedido.pk}/',
             )
         # Notificar al administrador
         notify_role(
             'Administrador',
             f"💰 Nueva orden #{pedido.pk} registrada.{' Sin domiciliario disponible.' if not domiciliario else ''}",
             tipo='pedido',
-            url=f'/entregas/pedido/{pedido.pk}/',
+            url=f'/entregas/{pedido.pk}/',
         )
 
         # Clear both session and DB cart

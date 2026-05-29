@@ -45,7 +45,6 @@ $null
 
 # Archivos estaticos recolectados (se regeneran con collectstatic)
 staticfiles/
-/static/
 **/static/admin/
 **/static/rest_framework/
 

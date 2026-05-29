@@ -18,7 +18,7 @@
 &nbsp;&nbsp; <strong>Teléfono:</strong> {{ pedido.telefono_contacto }}
 &nbsp;&nbsp; <strong>Email:</strong> {{ pedido.cliente.email }}</p>
 
-<p><strong>Domiciliario:</strong> {{ pedido.domiciliario.get_full_name|default:pedido.domiciliario.email }}
+<p><strong>Domiciliario:</strong> {% if pedido.domiciliario %}{{ pedido.domiciliario.get_full_name|default:pedido.domiciliario.email }}{% else %}Sin asignar{% endif %}
 &nbsp;&nbsp; <strong>Dirección de entrega:</strong> {{ pedido.direccion_entrega }}</p>
 
 {% if pedido.notas %}
