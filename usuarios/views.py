@@ -26,7 +26,7 @@ from django.shortcuts import render, redirect, get_object_or_404
 from django.contrib.auth import authenticate, login, logout
 from django.contrib.auth.decorators import login_required
 from django.contrib import messages
-from django.http import JsonResponse, HttpResponseForbidden
+from django.http import JsonResponse, HttpResponseForbidden, HttpResponse
 from django.views.decorators.csrf import csrf_exempt
 from django.views.decorators.http import require_POST
 from django.contrib.auth import get_user_model
@@ -48,9 +48,16 @@ Usuario = get_user_model()
 
 def landing_page(request):
     """Landing page pública. Usuarios autenticados son redirigidos a su dashboard por rol."""
-    if request.user.is_authenticated:
-        return redirect(get_redirect_url(request.user))
-    return render(request, 'landing.html')
+    import traceback as _tb
+    try:
+        if request.user.is_authenticated:
+            return redirect(get_redirect_url(request.user))
+        return render(request, 'landing.html')
+    except Exception as e:
+        return HttpResponse(
+            f'<pre>ERROR 500:\n{type(e).__name__}: {e}\n\n{_tb.format_exc()}</pre>',
+            status=500,
+        )
 
 
 def get_redirect_url(user):
