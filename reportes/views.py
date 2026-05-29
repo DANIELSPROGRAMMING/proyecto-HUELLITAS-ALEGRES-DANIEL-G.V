@@ -16,7 +16,7 @@ from usuarios.decorators import role_required
 from usuarios.models import ConfiguracionClinica
 
 
-def _render_to_pdf(template_path, context):
+def _render_to_pdf(template_path, context, filename='reporte.pdf'):
     """Renderiza una plantilla Django como respuesta HTTP en formato PDF."""
     html = render_to_string(template_path, context)
     buf = io.BytesIO()
@@ -24,7 +24,9 @@ def _render_to_pdf(template_path, context):
     if pisa_status.err:
         return HttpResponse('Error generating PDF', status=500)
     buf.seek(0)
-    return HttpResponse(buf.read(), content_type='application/pdf')
+    response = HttpResponse(buf.read(), content_type='application/pdf')
+    response['Content-Disposition'] = f'inline; filename="{filename}"'
+    return response
 
 
 def _export_inventario_excel(queryset):
@@ -331,9 +333,15 @@ def admin_metricas_excel(request):
         ws.cell(row=row, column=3, value=vet.citas_total)
         row += 1
 
-    # Ajustar ancho de columnas automáticamente
-    for col_idx in range(1, 6):
-        ws.column_dimensions[chr(64 + col_idx)].width = 20
+    # Ajustar ancho de columnas según contenido
+    from openpyxl.utils import get_column_letter
+    for col_cells in ws.columns:
+        max_length = 0
+        col_letter = get_column_letter(col_cells[0].column)
+        for cell in col_cells:
+            if cell.value:
+                max_length = max(max_length, len(str(cell.value)))
+        ws.column_dimensions[col_letter].width = min(max_length + 4, 40)
 
     buf = io.BytesIO()
     wb.save(buf)

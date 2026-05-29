@@ -256,3 +256,36 @@ class AdminMetricasTest(TestCase):
         self.c.force_login(self.admin)
         resp = self.c.get(reverse('reportes:admin_metricas'))
         self.assertIn('config', resp.context)
+
+    def test_admin_metricas_pdf_returns_pdf(self):
+        """El Admin puede exportar métricas como PDF y recibe content_type correcto."""
+        self.c.force_login(self.admin)
+        resp = self.c.get(reverse('reportes:admin_metricas_pdf'))
+        self.assertEqual(resp.status_code, 200)
+        self.assertEqual(resp['Content-Type'], 'application/pdf')
+
+    def test_admin_metricas_pdf_non_admin_403(self):
+        """Un Cliente no puede exportar métricas como PDF."""
+        self.c.force_login(self.cliente)
+        resp = self.c.get(reverse('reportes:admin_metricas_pdf'))
+        self.assertEqual(resp.status_code, 403)
+
+    def test_admin_metricas_excel_returns_excel(self):
+        """El Admin puede exportar métricas como Excel con el MIME type correcto."""
+        self.c.force_login(self.admin)
+        resp = self.c.get(reverse('reportes:admin_metricas_excel'))
+        self.assertEqual(resp.status_code, 200)
+        self.assertIn('spreadsheetml', resp['Content-Type'])
+        self.assertTrue(len(resp.content) > 0)
+
+    def test_admin_metricas_excel_has_attachment_header(self):
+        """El Excel export tiene el header Content-Disposition para descarga."""
+        self.c.force_login(self.admin)
+        resp = self.c.get(reverse('reportes:admin_metricas_excel'))
+        self.assertIn('attachment', resp.get('Content-Disposition', ''))
+
+    def test_admin_metricas_excel_non_admin_403(self):
+        """Un Cliente no puede exportar métricas como Excel."""
+        self.c.force_login(self.cliente)
+        resp = self.c.get(reverse('reportes:admin_metricas_excel'))
+        self.assertEqual(resp.status_code, 403)
