@@ -19,12 +19,15 @@ Plataforma web desarrollada con Django que permite administrar de forma completa
 - [Tecnologías](#-tecnologías)
 - [Estructura del Proyecto](#-estructura-del-proyecto)
 - [Instalación](#-instalación)
+- [Despliegue en Railway](#-despliegue-en-railway)
 - [Creación del Superusuario](#-creación-del-superusuario)
 - [Ejecución](#-ejecución)
 - [Pruebas](#-pruebas)
+- [Seguridad](#-seguridad)
+- [Sistema de Diseño](#-sistema-de-diseño)
 - [Autor](#-autor)
 - [Licencia](#-licencia)
-- [Futuras Implementaciones / Roadmap de Innovación](#-futuras-implementaciones--roadmap-de-innovación)
+- [Roadmap](#-roadmap-de-innovación)
 
 ---
 
@@ -144,7 +147,7 @@ El chatbot acepta **fotos de mascotas** para análisis visual con `phi-4-multimo
 - **Timeout diferenciado**: 15s para texto, 30s para imágenes
 - **API key** gestionada vía `.env` + `python-dotenv` (nunca en código)
 - **Modelos**: `nemotron-mini-4b-instruct` (texto/tools) + `phi-4-multimodal-instruct` (imágenes)
-- **62 tests**: unitarios, integración, regresión — cobertura completa de todos los caminos (éxito, timeout, error HTTP, fallback, tools desconocidas, imágenes)
+- **Más de 80 tests**: unitarios, integración, regresión — cobertura completa de todos los caminos (éxito, timeout, error HTTP, fallback, tools desconocidas, imágenes)
 
 ---
 
@@ -433,16 +436,31 @@ python manage.py test tienda
 python manage.py test notificaciones
 ```
 
-El proyecto cuenta con **62 pruebas** cubriendo:
-- Chatbot: detección de intenciones, flujo de 3 niveles de productos, rate limiting, respuestas por intención
+El proyecto cuenta con **más de 80 pruebas** cubriendo:
+- Chatbot: detección de intenciones, flujo de 3 niveles de productos, rate limiting
 - NVIDIA NIM: NimClient HTTP, NimResponseFormatter, hybrid dispatch, estado de conversación AI
 - RAG: inyección de contexto real, prevención de alucinaciones
-- Function Calling: 4 tools, ejecución segura, herramientas desconocidas, argumentos malformados
-- Imágenes: ruta multimodal, timeout 30s, errores de conexión, fallback sin API key
+- Function Calling: 4 tools, ejecución segura, herramientas desconocidas
+- Imágenes: ruta multimodal, timeout 30s, errores de conexión
 - Tienda: catálogo, carrito, checkout, asignación de domiciliario
 - Notificaciones: creación, marcado como leída, conteo por rol
 - Servicios: modelo, formulario, categorías
 - Agenda: formulario de cita, disponibilidades, validaciones
+- Reportes: métricas administrativas, exportación PDF, exportación Excel, permisos
+- Entregas: flujo del domiciliario, evidencia, comprobante PDF
+
+---
+
+## 🎨 Sistema de Diseño
+
+El diseño visual del sistema está documentado en [`DESIGN.md`](DESIGN.md), que incluye:
+
+- **Paleta de colores**: Material Design 3 con tonos verdes naturales
+- **Tipografía**: Plus Jakarta Sans (headlines) + Manrope (cuerpo)
+- **Componentes**: Cards, botones, badges, modales, tablas, formularios
+- **Sidebars por rol**: Navegación diferenciada para Admin, Veterinario, Cliente y Domiciliario
+- **Dashboards**: Métricas, gráficos y layouts específicos por perfil
+- **Responsive**: Mobile-first con Tailwind breakpoints
 
 ---
 
