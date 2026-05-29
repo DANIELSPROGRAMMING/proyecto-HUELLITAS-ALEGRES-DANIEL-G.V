@@ -48,16 +48,9 @@ Usuario = get_user_model()
 
 def landing_page(request):
     """Landing page pública. Usuarios autenticados son redirigidos a su dashboard por rol."""
-    import traceback as _tb
-    try:
-        if request.user.is_authenticated:
-            return redirect(get_redirect_url(request.user))
-        return render(request, 'landing.html')
-    except Exception as e:
-        return HttpResponse(
-            f'<pre>ERROR 500:\n{type(e).__name__}: {e}\n\n{_tb.format_exc()}</pre>',
-            status=500,
-        )
+    if request.user.is_authenticated:
+        return redirect(get_redirect_url(request.user))
+    return render(request, 'landing.html')
 
 
 def get_redirect_url(user):
