@@ -445,30 +445,37 @@ def procesar_chat(request):
                 'quick_replies': formatted['quick_replies'],
             })
         except requests.exceptions.Timeout:
-            return JsonResponse({
-                'response': (
-                    'El análisis de la imagen está tardando más de lo esperado. '
-                    '¿Podrías intentar con una imagen más pequeña o describir tu consulta con texto?'
-                ),
-                'quick_replies': ['🔄 Intentar de nuevo', '📅 Citas', '💊 Productos'],
-            })
+            # If image times out but there's text, fall through to text-only NIM
+            if message:
+                pass  # fall through to text NIM below
+            else:
+                return JsonResponse({
+                    'response': (
+                        'El análisis de la imagen está tardando más de lo esperado. '
+                        '¿Podrías intentar con una imagen más pequeña o describir tu consulta con texto?'
+                    ),
+                    'quick_replies': ['🔄 Intentar de nuevo', '📅 Citas', '💊 Productos'],
+                })
         except requests.exceptions.ConnectionError:
-            return JsonResponse({
-                'response': 'No puedo analizar imágenes en este momento. ¿Podrías describir tu consulta con texto?',
-                'quick_replies': ['📅 Citas', '💊 Productos', '📍 Ubicación'],
-            })
-        except requests.exceptions.HTTPError as e:
-            print(f'[NIM IMAGE HTTP] {e.response.status_code if e.response else "?"}')
-            return JsonResponse({
-                'response': STATIC_RESPONSES['fallback'],
-                'quick_replies': ['📅 Citas', '💊 Productos', '📍 Ubicación', '🚨 Urgencias'],
-            })
-        except (ValueError, TypeError, json.JSONDecodeError, AttributeError) as e:
-            print(f'[NIM IMAGE ERROR] {type(e).__name__}')
-            return JsonResponse({
-                'response': STATIC_RESPONSES['fallback'],
-                'quick_replies': ['📅 Citas', '💊 Productos', '📍 Ubicación', '🚨 Urgencias'],
-            })
+            if message:
+                pass  # fall through to text NIM below
+            else:
+                return JsonResponse({
+                    'response': 'No puedo analizar imágenes en este momento. ¿Podrías describir tu consulta con texto?',
+                    'quick_replies': ['📅 Citas', '💊 Productos', '📍 Ubicación'],
+                })
+        except Exception as e:
+            # Any other image error: log it and fall through to text NIM if there's text
+            print(f'[NIM IMAGE] {type(e).__name__}: {e}')
+            if not message:
+                return JsonResponse({
+                    'response': (
+                        f'No pude analizar la imagen ({type(e).__name__}). '
+                        f'¿Podrías describir el problema con texto?'
+                    ),
+                    'quick_replies': ['📅 Citas', '💊 Productos', '📍 Ubicación'],
+                })
+            # Fall through to text NIM below — the text will be processed
 
     intent = _detect_intent(message)
 
