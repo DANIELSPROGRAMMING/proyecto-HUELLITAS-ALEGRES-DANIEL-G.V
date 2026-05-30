@@ -134,11 +134,12 @@ El modelo puede **consultar la base de datos en tiempo real** mediante 4 herrami
 **Seguridad**: solo herramientas registradas se ejecutan. Todas son solo lectura (SELECT, sin INSERT/UPDATE/DELETE). Loop limitado a 3 rondas máximo.
 
 ### Fase 4 — Análisis Multimodal de Imágenes
-El chatbot acepta **fotos de mascotas** para análisis visual con `phi-4-multimodal-instruct`:
+El chatbot acepta **fotos de mascotas** para análisis visual con `llama-3.2-11b-vision-instruct`:
 - Botón 📷 en el widget con preview y validación de 4 MB
 - Timeout exclusivo de 30s para inferencia visual
 - Aviso de privacidad: "Las imágenes se envían a un servicio de IA externo"
 - La imagen es efímera: no se almacena en disco ni en base de datos
+- **Degradación graceful**: si el análisis de imagen falla, el texto se procesa con NIM automáticamente
 
 ### Características técnicas del asistente
 
@@ -146,8 +147,8 @@ El chatbot acepta **fotos de mascotas** para análisis visual con `phi-4-multimo
 - **Offline-safe**: si NIM no responde, el sistema degrada gracefulmente al fallback de reglas
 - **Timeout diferenciado**: 15s para texto, 30s para imágenes
 - **API key** gestionada vía `.env` + `python-dotenv` (nunca en código)
-- **Modelos**: `nemotron-mini-4b-instruct` (texto/tools) + `phi-4-multimodal-instruct` (imágenes)
-- **Más de 80 tests**: unitarios, integración, regresión — cobertura completa de todos los caminos (éxito, timeout, error HTTP, fallback, tools desconocidas, imágenes)
+- **Modelos**: `nemotron-mini-4b-instruct` (texto/tools) + `llama-3.2-11b-vision-instruct` (imágenes)
+- **Más de 90 tests**: unitarios, integración, regresión — cobertura completa de todos los caminos
 
 ---
 
@@ -261,7 +262,7 @@ Los productos y servicios usan **soft delete** (`esta_activo=False`) en lugar de
 | Componente | Tecnología |
 |------------|-----------|
 | **Backend** | Django 5.2 (Python 3.12+) |
-| **Base de Datos** | SQLite (desarrollo) / PostgreSQL (producción) |
+| **Base de Datos** | SQLite (desarrollo local) / PostgreSQL 16 (producción Railway) |
 | **Frontend** | Tailwind CSS CDN + Alpine.js + Material Symbols Outlined |
 | **Plantillas** | Django Templates con herencia y bloques |
 | **PDF** | xhtml2pdf |
@@ -270,9 +271,10 @@ Los productos y servicios usan **soft delete** (`esta_activo=False`) en lugar de
 | **Autenticación** | Django AUTH_USER_MODEL personalizado (email como USERNAME_FIELD) |
 | **Autorización** | Modelo Rol personalizado + decoradores por rol |
 | **Sesiones** | Django Sessions (carrito de compras + rate limiting del chatbot) |
-| **Chatbot / IA** | Rule-based + NVIDIA NIM (nemotron-mini-4b-instruct + phi-4-multimodal-instruct) |
+| **Chatbot / IA** | Rule-based + NVIDIA NIM (nemotron-mini-4b-instruct + llama-3.2-11b-vision-instruct) |
 | **Notificaciones** | Modelado con helpers `notify()`/`notify_role()` e inyección vía context processor |
 | **Variables de entorno** | python-dotenv (API keys en `.env`, nunca en código) |
+| **Despliegue** | Railway + Gunicorn + migraciones automáticas vía Procfile |
 | **Zona Horaria** | America/Bogota (timezone.localdate()) |
 
 ---
@@ -371,6 +373,69 @@ python manage.py migrate
 ```bash
 python manage.py shell < seed_roles.py
 ```
+
+---
+
+## 🚀 Despliegue en Railway
+
+El proyecto está desplegado en Railway con **PostgreSQL 16** como base de datos de producción.
+
+### Archivos de configuración
+
+| Archivo | Propósito |
+|---------|-----------|
+| `railpack.json` | Dependencias de sistema (`libcairo2-dev`, `pkg-config`) para compilar xhtml2pdf |
+| `Procfile` | `migrate --noinput` → `collectstatic` → `gunicorn` (migraciones automáticas en cada deploy) |
+| `requirements.txt` | Dependencias Python incluyendo `gunicorn`, `psycopg2-binary`, `dj-database-url` |
+
+### Variables de entorno en Railway
+
+```
+DJANGO_DEBUG=False         # True durante presentaciones para ver errores
+DJANGO_SECRET_KEY=<clave>  # Generada por Railway
+NVIDIA_NIM_API_KEY=<key>   # API key de NVIDIA (build.nvidia.com)
+DATABASE_URL=<postgres://> # Railway la genera al crear el servicio PostgreSQL
+```
+
+`ALLOWED_HOSTS` se configura automáticamente con `RAILWAY_PUBLIC_DOMAIN`.
+
+### Migraciones en Railway
+
+Cada `git push` ejecuta automáticamente `python manage.py migrate --noinput` (definido en `Procfile`). Si creás o modificás modelos, solo necesitás correr localmente:
+
+```bash
+python manage.py makemigrations
+python manage.py migrate
+git add .
+git commit -m "feat: descripción del cambio"
+git push
+```
+
+### Stack de producción
+
+- **Servidor**: Gunicorn con worker sync
+- **Base de datos**: PostgreSQL 16 (persistente, sobrevive a deploys)
+- **Estáticos**: Servidos vía `collectstatic` en cada build
+- **Desarrollo local**: SQLite automáticamente (cuando no hay `DATABASE_URL`)
+
+---
+
+## 🔒 Seguridad
+
+| Práctica | Estado |
+|----------|--------|
+| API Keys en `.env` (gitignored) | ✅ |
+| `DEBUG` controlado por variable de entorno | ✅ |
+| `SECRET_KEY` desde variable de entorno | ✅ |
+| `ALLOWED_HOSTS` dinámico con `RAILWAY_PUBLIC_DOMAIN` | ✅ |
+| CSRF en todos los formularios POST | ✅ |
+| Subida de archivos validada (tamaño, tipo) | ✅ |
+| Function Calling solo lectura (sin INSERT/UPDATE/DELETE) | ✅ |
+| Rate limiting en chatbot (30 req/min) | ✅ |
+| Sin secretos hardcodeados en código fuente | ✅ |
+| PostgreSQL con contraseña en variable de entorno | ✅ |
+
+4 auditorías de seguridad realizadas: **13 issues encontrados, 13 corregidos, 0 restantes**.
 
 ---
 
@@ -485,9 +550,10 @@ Este proyecto es de uso educativo como parte del programa de formación del SENA
 | 1 | Hybrid Dispatcher + Estado de Conversación | `nemotron-mini-4b-instruct` | ✅ |
 | 2 | RAG — Contexto real de BD (anti-alucinaciones) | `nemotron-mini-4b-instruct` | ✅ |
 | 3 | Function Calling — 4 tools nativas | `nemotron-mini-4b-instruct` | ✅ |
-| 4 | Análisis Multimodal de Imágenes | `phi-4-multimodal-instruct` | ✅ |
+| 4 | Análisis Multimodal de Imágenes | `llama-3.2-11b-vision-instruct` | ✅ |
+| 5 | Migración a PostgreSQL 16 en Railway | PostgreSQL + `dj-database-url` | ✅ |
 
-El asistente ahora **piensa, consulta la base de datos, responde con datos reales y analiza imágenes**. La arquitectura híbrida mantiene las reglas locales para consultas frecuentes (gratis, instantáneas) y deriva a IA solo cuando es necesario.
+El asistente ahora **piensa, consulta la base de datos, responde con datos reales, analiza imágenes y se degrada con gracia si la imagen falla** (procesa el texto con NIM).
 
 ### 📧 Notificaciones por Email (Parcialmente Implementadas)
 
