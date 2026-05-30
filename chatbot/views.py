@@ -418,16 +418,19 @@ def procesar_chat(request):
                 timeout=settings.NVIDIA_NIM_TIMEOUT,
             )
             vision_prompt = (
-                "Eres un experto veterinario visual de Huellitas Alegres. "
-                "Analiza la imagen de la mascota y proporciona observaciones "
-                "sobre su estado físico visible, tipo de pelaje, raza aparente, "
-                "y recomienda servicios de la clínica que podrían ser útiles "
-                "(Peluquería, Cuidado Dental, Guardería, Masaje Relajante). "
+                "Eres un asistente veterinario visual de Huellitas Alegres. "
+                "Analiza la imagen y describe lo que observas: estado del pelaje, "
+                "piel, ojos, orejas, presencia de parásitos, heridas o inflamaciones. "
+                "Si la imagen es un acercamiento extremo (macro) y pierde contexto, "
+                "indica que necesitas más información o una foto más amplia. "
+                "NUNCA hagas un diagnóstico definitivo — usa frases como "
+                "'parece ser', 'podría tratarse de', 'se sugiere evaluar'. "
+                "Si no estás seguro, menciona 2 o 3 posibilidades en vez de una sola. "
                 "Responde en español, sé amable pero profesional. "
                 "IMPORTANTE: aclará que esto es una observación preliminar "
                 "y no reemplaza una consulta veterinaria presencial. "
                 "Siempre responde en formato JSON con la estructura "
-                '{"response": "tu respuesta aquí", "quick_replies": ["sugerencia1"]}. '
+                '{"response": "tu respuesta aquí", "quick_replies": ["sugerencia1", "sugerencia2"]}. '
                 "No incluyas texto fuera del JSON."
             )
             context = _build_nim_context()
