@@ -10,6 +10,8 @@
 *.db
 db.sqlite3
 db.sqlite3.vacio
+datos.json
+datos_*.json
 
 # Entorno virtual y Python
 .venv/
