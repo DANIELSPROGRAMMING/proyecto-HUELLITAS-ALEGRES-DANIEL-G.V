@@ -30,6 +30,12 @@ if _railway_domain:
     ALLOWED_HOSTS.append(_railway_domain)
     ALLOWED_HOSTS.append(f'.{_railway_domain}')
 
+# CSRF: required for HTTPS POST on Railway (Django 4.0+)
+CSRF_TRUSTED_ORIGINS = ['http://localhost', 'http://127.0.0.1']
+if _railway_domain:
+    CSRF_TRUSTED_ORIGINS.append(f'https://{_railway_domain}')
+    CSRF_TRUSTED_ORIGINS.append(f'https://*.{_railway_domain}')
+
 
 # Application definition
 
