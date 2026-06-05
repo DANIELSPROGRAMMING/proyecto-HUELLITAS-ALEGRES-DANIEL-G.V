@@ -166,8 +166,6 @@ def _check_availability(args: dict) -> str:
 
     return "Turnos disponibles:\n" + "\n".join(lines)
 
-    return "Turnos disponibles:\n" + "\n".join(lines)
-
 
 @_register("list_services")
 def _list_services(args: dict) -> str:

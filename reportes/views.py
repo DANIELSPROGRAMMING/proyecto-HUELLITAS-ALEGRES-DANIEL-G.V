@@ -53,6 +53,16 @@ def _export_inventario_excel(queryset):
         ws.cell(row=row, column=6, value=getattr(p.proveedor, 'nombre', '') or '-')
         ws.cell(row=row, column=7, value=estado)
 
+    # Ajustar ancho de columnas según contenido
+    from openpyxl.utils import get_column_letter
+    for col_cells in ws.columns:
+        max_length = 0
+        col_letter = get_column_letter(col_cells[0].column)
+        for cell in col_cells:
+            if cell.value:
+                max_length = max(max_length, len(str(cell.value)))
+        ws.column_dimensions[col_letter].width = min(max_length + 4, 40)
+
     buf = io.BytesIO()
     wb.save(buf)
     buf.seek(0)

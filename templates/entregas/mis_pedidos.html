@@ -38,7 +38,7 @@
                     </div>
                     <div class="flex items-center gap-2 font-body-md text-body-md text-on-surface">
                         <span class="material-symbols-outlined text-on-surface-variant text-[18px]">local_shipping</span>
-                        <span>{{ pedido.domiciliario.get_full_name }}</span>
+                        <span>{% if pedido.domiciliario %}{{ pedido.domiciliario.get_full_name }}{% else %}Sin asignar{% endif %}</span>
                     </div>
                     <p class="flex items-center gap-2 font-caption text-caption text-on-surface-variant mt-3">
                         <span class="material-symbols-outlined text-[14px]">schedule</span>

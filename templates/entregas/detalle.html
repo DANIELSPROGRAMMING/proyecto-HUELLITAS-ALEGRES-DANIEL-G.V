@@ -146,7 +146,7 @@
                         <span class="material-symbols-outlined text-on-surface-variant text-[20px]">local_shipping</span>
                         <div>
                             <p class="font-caption text-caption text-on-surface-variant">Domiciliario</p>
-                            <p class="font-body-md text-body-md text-on-surface">{{ pedido.domiciliario.get_full_name }}</p>
+                            <p class="font-body-md text-body-md text-on-surface">{% if pedido.domiciliario %}{{ pedido.domiciliario.get_full_name }}{% else %}Sin asignar{% endif %}</p>
                         </div>
                     </div>
                     <div class="flex items-center gap-3">

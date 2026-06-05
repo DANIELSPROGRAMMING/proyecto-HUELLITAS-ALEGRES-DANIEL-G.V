@@ -70,6 +70,10 @@
           <button type="button" disabled class="w-full bg-surface-container-high text-on-surface-variant font-label-md text-label-md rounded-lg px-6 py-2.5 cursor-not-allowed opacity-60 inline-flex items-center justify-center gap-2">
             <span class="material-symbols-outlined text-[18px]">block</span> Producto agotado
           </button>
+          {% elif user.rol.nombre != 'Cliente' %}
+          <button disabled class="w-full bg-surface-container-high text-on-surface-variant font-label-md text-label-md rounded-lg px-6 py-2.5 cursor-not-allowed opacity-60">
+            <span class="material-symbols-outlined text-[18px]">info</span> Solo clientes pueden comprar
+          </button>
           {% elif in_cart %}
           <div class="flex flex-col gap-2">
             <div class="flex items-center gap-2 p-3 bg-primary-container/30 rounded-lg">

@@ -106,9 +106,15 @@
   <a href="{% url 'historial:por_mascota' mascota.pk %}" class="inline-flex items-center gap-2 bg-tertiary-container/30 text-tertiary font-label-md text-label-md rounded-lg px-4 py-2.5 hover:opacity-90 transition-opacity">
     <span class="material-symbols-outlined text-[18px]">description</span> Historial Clínico
   </a>
+  {% if user.rol.nombre == 'Cliente' %}
+  <a href="{% url 'agenda:solicitar_cita' %}?mascota_id={{ mascota.pk }}" class="inline-flex items-center gap-2 bg-primary-container/30 text-primary font-label-md text-label-md rounded-lg px-4 py-2.5 hover:opacity-90 transition-opacity">
+    <span class="material-symbols-outlined text-[18px]">event</span> Agendar Cita
+  </a>
+  {% else %}
   <a href="{% url 'agenda:crear_cita' %}" class="inline-flex items-center gap-2 bg-primary-container/30 text-primary font-label-md text-label-md rounded-lg px-4 py-2.5 hover:opacity-90 transition-opacity">
     <span class="material-symbols-outlined text-[18px]">event</span> Agendar Cita
   </a>
+  {% endif %}
   <a href="{% url 'mascotas:editar' mascota.pk %}" class="inline-flex items-center gap-2 bg-surface-container-high text-on-surface font-label-md text-label-md rounded-lg px-4 py-2.5 hover:bg-surface-container-highest transition-colors">
     <span class="material-symbols-outlined text-[18px]">edit</span> Editar
   </a>
