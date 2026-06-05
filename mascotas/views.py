@@ -8,7 +8,7 @@ from .models import Mascota, ESPECIE_CHOICES
 from .forms import MascotaForm
 
 
-@login_required(login_url='/usuarios/login/')
+@login_required
 def cliente_dashboard(request):
     """Dashboard del Cliente — solo rol Cliente."""
     if request.user.rol.nombre != 'Cliente':
@@ -16,7 +16,7 @@ def cliente_dashboard(request):
     return render(request, 'mascotas/cliente_dashboard.html')
 
 
-@login_required(login_url='/usuarios/login/')
+@login_required
 def lista_mascotas(request):
     """Lista mascotas con filtrado por rol, búsqueda Q objects y filtro por especie."""
     q = request.GET.get('q', '').strip()
@@ -58,7 +58,7 @@ def lista_mascotas(request):
     })
 
 
-@login_required(login_url='/usuarios/login/')
+@login_required
 def crear_mascota(request):
     """Crear nueva mascota — Cliente, Vet y Admin pueden crear."""
     # Domiciliario no puede crear mascotas
@@ -85,7 +85,7 @@ def crear_mascota(request):
     return render(request, 'mascotas/mascota_form.html', {'form': form})
 
 
-@login_required(login_url='/usuarios/login/')
+@login_required
 def editar_mascota(request, pk):
     """Editar mascota — Vet/Admin editan cualquiera, Cliente solo las propias, Domiciliario=403."""
     if request.user.rol.nombre == 'Domiciliario':
@@ -106,7 +106,7 @@ def editar_mascota(request, pk):
     return render(request, 'mascotas/mascota_form.html', {'form': form})
 
 
-@login_required(login_url='/usuarios/login/')
+@login_required
 def eliminar_mascota(request, pk):
     """Eliminar mascota — Veterinario, Administrador, o Cliente (propietario)."""
     mascota = get_object_or_404(Mascota, pk=pk)
@@ -124,7 +124,7 @@ def eliminar_mascota(request, pk):
     return render(request, 'mascotas/mascota_confirm_delete.html', {'mascota': mascota})
 
 
-@login_required(login_url='/usuarios/login/')
+@login_required
 def detalle_mascota(request, pk):
     """Detalle de mascota — Vet/Admin ven cualquier mascota, Cliente solo las propias, Domiciliario=403."""
     if request.user.rol.nombre == 'Domiciliario':

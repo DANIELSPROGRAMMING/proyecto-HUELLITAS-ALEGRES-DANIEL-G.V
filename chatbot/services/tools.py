@@ -9,9 +9,7 @@ All handlers return strings (success or error message).
 """
 
 import json
-from datetime import date, datetime
-
-from django.db.models import Count, Q
+from datetime import datetime
 
 # ─────────────────────────────────────────────
 # Tool Schema Definitions
@@ -24,15 +22,11 @@ TOOLS = [
             "name": "check_availability",
             "description": (
                 "Consultar los próximos turnos disponibles en la clínica. "
-                "Puede filtrarse por nombre de servicio o fecha."
+                "Puede filtrarse por fecha."
             ),
             "parameters": {
                 "type": "object",
                 "properties": {
-                    "servicio": {
-                        "type": "string",
-                        "description": "Nombre del servicio (ej: 'Peluqueria', 'Cuidado Dental'). Opcional — si no se indica, muestra todos.",
-                    },
                     "fecha": {
                         "type": "string",
                         "description": "Fecha en formato YYYY-MM-DD. Opcional — default: desde hoy.",
@@ -141,20 +135,14 @@ def execute_tool(name: str, arguments: dict) -> str:
 def _check_availability(args: dict) -> str:
     """Query Disponibilidad for available slots."""
     from agenda.models import Disponibilidad
+    from django.utils import timezone
 
-    servicio_filter = args.get("servicio", "").strip()
     fecha_str = args.get("fecha", "").strip()
 
     queryset = Disponibilidad.objects.filter(
-        esta_disponible=True,
-        fecha__gte=date.today(),
+        activa=True,
+        fecha__gte=timezone.localdate(),
     ).order_by("fecha", "hora_inicio")
-
-    if servicio_filter:
-        queryset = queryset.filter(
-            Q(servicio__nombre__icontains=servicio_filter)
-            | Q(servicio__nombre__iexact=servicio_filter)
-        )
 
     if fecha_str:
         try:
@@ -166,17 +154,17 @@ def _check_availability(args: dict) -> str:
     slots = list(queryset[:10])
     if not slots:
         msg = "No hay turnos disponibles"
-        if servicio_filter:
-            msg += f" para '{servicio_filter}'"
         if fecha_str:
             msg += f" en la fecha {fecha_str}"
         return msg + "."
 
     lines = []
     for s in slots:
-        svc_name = s.servicio.nombre if s.servicio else "Sin servicio"
+        vet_name = s.veterinario.get_full_name() or s.veterinario.email
         hora = s.hora_inicio.strftime("%H:%M") if s.hora_inicio else "—"
-        lines.append(f"  • {s.fecha.strftime('%d/%m')} — {hora} — {svc_name}")
+        lines.append(f"  • {s.fecha.strftime('%d/%m')} — {hora} — Dr/a. {vet_name}")
+
+    return "Turnos disponibles:\n" + "\n".join(lines)
 
     return "Turnos disponibles:\n" + "\n".join(lines)
 

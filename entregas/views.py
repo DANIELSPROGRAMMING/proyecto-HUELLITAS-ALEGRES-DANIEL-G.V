@@ -50,7 +50,7 @@ def asignar_domiciliario_disponible():
         return None
 
 
-@login_required(login_url='/usuarios/login/')
+@login_required
 def dashboard(request):
     """Dashboard domiciliario — muestra pedidos asignados al usuario actual.
     Admin ve todos, Domiciliario ve solo los suyos."""
@@ -84,7 +84,7 @@ def dashboard(request):
     })
 
 
-@login_required(login_url='/usuarios/login/')
+@login_required
 def pedido_detalle(request, pk):
     """Vista de detalle para un solo pedido.
     Admin/Domiciliario ven sus pedidos con botones de acción.
@@ -118,7 +118,7 @@ def pedido_detalle(request, pk):
     })
 
 
-@login_required(login_url='/usuarios/login/')
+@login_required
 def cambiar_estado(request, pk):
     """Cambiar estado del pedido — solo POST. Maneja transiciones y evidencia."""
     if request.method != 'POST':
@@ -198,6 +198,14 @@ def cambiar_estado(request, pk):
             tipo='pedido',
             url=f'/entregas/{pedido.pk}/',
         )
+        # Notificar al domiciliario que su pedido fue cancelado
+        if pedido.domiciliario:
+            notify(
+                pedido.domiciliario,
+                f"🛑 Tu Pedido #{pedido.pk} ha sido cancelado. Ya no está en tu lista de entregas.",
+                tipo='pedido',
+                url=f'/entregas/{pedido.pk}/',
+            )
     if nuevo_estado == 'entregado':
         pedido.fecha_entrega = timezone.now()
         # Descontar stock del producto de cada item
@@ -212,6 +220,16 @@ def cambiar_estado(request, pk):
                 usuario=request.user,
                 motivo=f'Entrega Pedido #{pedido.pk}',
             )
+            # Alerta de stock bajo si el producto quedó por debajo del mínimo
+            if producto.cantidad_stock <= producto.stock_minimo:
+                notify_role(
+                    'Administrador',
+                    f"🚨 Alerta de Inventario: '{producto.nombre}' quedó con "
+                    f"{producto.cantidad_stock} unidades (mínimo: {producto.stock_minimo}). "
+                    f"¡Reabastecer!",
+                    tipo='stock',
+                    url=f'/productos/kardex/{producto.pk}/',
+                )
         # Notificar al cliente y al admin
         notify(
             pedido.cliente,
@@ -271,7 +289,7 @@ def crear_pedido(request):
     })
 
 
-@login_required(login_url='/usuarios/login/')
+@login_required
 def resumen(request):
     """Resumen diario de pedidos entregados — Domiciliario ve los suyos, Admin ve todos."""
     if request.user.rol.nombre == 'Cliente':
@@ -295,7 +313,7 @@ def resumen(request):
     })
 
 
-@login_required(login_url='/usuarios/login/')
+@login_required
 def mis_pedidos(request):
     """Cliente ve solo sus propios pedidos."""
     if request.user.rol.nombre != 'Cliente':
@@ -334,7 +352,7 @@ def editar_pedido(request, pk):
     })
 
 
-@login_required(login_url='/usuarios/login/')
+@login_required
 def comprobante_pdf(request, pk):
     """Generar PDF comprobante para un pedido entregado.
     Solo disponible cuando estado == 'entregado'.
@@ -369,7 +387,7 @@ def comprobante_pdf(request, pk):
     return response
 
 
-@login_required(login_url='/usuarios/login/')
+@login_required
 @role_required('Administrador')
 def torre_control(request):
     """Torre de Control — Vista global solo para Admin de todos los pedidos con capacidad de reasignar.
@@ -483,7 +501,7 @@ def toggle_disponibilidad(request, pk):
     return redirect('entregas:torre_control')
 
 
-@login_required(login_url='/usuarios/login/')
+@login_required
 def toggle_mi_disponibilidad(request):
     """Vista para que un Domiciliario cambie SU PROPIA disponibilidad.
     POST only — redirige de vuelta al dashboard de entregas.

@@ -11,7 +11,7 @@ from .forms import DisponibilidadForm, CitaForm, SolicitarCitaForm, ReprogramarC
 from notificaciones.helpers import notify
 
 
-@login_required(login_url='/usuarios/login/')
+@login_required
 def dashboard_vet(request):
     """Dashboard veterinario — disponibilidades + citas del usuario actual."""
     if request.user.rol.nombre not in ('Veterinario', 'Administrador'):
@@ -41,7 +41,7 @@ def dashboard_vet(request):
     })
 
 
-@login_required(login_url='/usuarios/login/')
+@login_required
 def lista_disponibilidades(request):
     """Lista de disponibilidades (Vet=own, Admin=all)."""
     if request.user.rol.nombre not in ('Veterinario', 'Administrador'):
@@ -75,7 +75,7 @@ def crear_disponibilidad(request):
     return render(request, 'agenda/disponibilidad_form.html', {'form': form})
 
 
-@login_required(login_url='/usuarios/login/')
+@login_required
 def editar_disponibilidad(request, pk):
     """Editar disponibilidad — Vet solo propia, Admin cualquiera."""
     if request.user.rol.nombre not in ('Veterinario', 'Administrador'):
@@ -94,7 +94,7 @@ def editar_disponibilidad(request, pk):
     return render(request, 'agenda/disponibilidad_form.html', {'form': form})
 
 
-@login_required(login_url='/usuarios/login/')
+@login_required
 def eliminar_disponibilidad(request, pk):
     """Eliminar disponibilidad con confirmación — Vet solo propia, Admin cualquiera.
 
@@ -147,7 +147,7 @@ def eliminar_disponibilidad(request, pk):
 # Cita Views (stubs — real implementations in Blocks 3-4)
 # ========================================
 
-@login_required(login_url='/usuarios/login/')
+@login_required
 def lista_citas(request):
     """Lista de citas (Vet=own, Admin=all, Cliente=own pets, Domiciliario=403)."""
     if request.user.rol.nombre == 'Veterinario':
@@ -182,7 +182,7 @@ def crear_cita(request):
     return render(request, 'agenda/cita_form.html', {'form': form})
 
 
-@login_required(login_url='/usuarios/login/')
+@login_required
 def solicitar_cita(request):
     """Cliente solicita una cita — only their own mascotas, available slots.
 
@@ -294,7 +294,7 @@ def solicitar_cita(request):
     })
 
 
-@login_required(login_url='/usuarios/login/')
+@login_required
 def editar_cita(request, pk):
     """Editar cita — Vet own only, Admin any."""
     if request.user.rol.nombre not in ('Veterinario', 'Administrador'):
@@ -317,7 +317,7 @@ def editar_cita(request, pk):
     return render(request, 'agenda/cita_form.html', {'form': form})
 
 
-@login_required(login_url='/usuarios/login/')
+@login_required
 def eliminar_cita(request, pk):
     """Cancelar cita — soft cancel (set estado='Cancelada'), NOT hard delete.
     Vet cancels own, Admin cancels any, Cliente cancels own pet's citas."""
@@ -367,7 +367,7 @@ def eliminar_cita(request, pk):
     return render(request, 'agenda/cita_cancel.html', {'cita': cita})
 
 
-@login_required(login_url='/usuarios/login/')
+@login_required
 def reprogramar_cita(request, pk):
     """Cliente reprogresa su propia cita — HU#5 criterion:
     «En caso de que el cliente necesite cambiar o cancelar una cita,

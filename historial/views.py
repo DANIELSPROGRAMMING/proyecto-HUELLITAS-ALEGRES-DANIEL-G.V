@@ -15,7 +15,7 @@ from mascotas.models import Mascota
 from notificaciones.helpers import notify
 
 
-@login_required(login_url='/usuarios/login/')
+@login_required
 def lista_historiales(request):
     """Lista de historiales clínicos con búsqueda y paginación.
 
@@ -71,7 +71,7 @@ def crear_historial(request):
     return render(request, 'historial/historial_form.html', {'form': form})
 
 
-@login_required(login_url='/usuarios/login/')
+@login_required
 def detalle_historial(request, pk):
     """Ver detalle de un historial clínico. Object-level permissions."""
     historial = get_object_or_404(
@@ -91,7 +91,7 @@ def detalle_historial(request, pk):
     return render(request, 'historial/historial_detail.html', {'historial': historial})
 
 
-@login_required(login_url='/usuarios/login/')
+@login_required
 def editar_historial(request, pk):
     """Editar un historial clínico. Vet can only edit own, Admin any, Cliente never."""
     historial = get_object_or_404(HistorialClinico, pk=pk)
@@ -121,7 +121,7 @@ def editar_historial(request, pk):
     })
 
 
-@login_required(login_url='/usuarios/login/')
+@login_required
 def historial_por_mascota(request, mascota_pk):
     """Ver historial clínico de una mascota específica."""
     mascota = get_object_or_404(Mascota, pk=mascota_pk)
@@ -271,7 +271,7 @@ def eliminar_adjunto(request, pk):
     })
 
 
-@login_required(login_url='/usuarios/login/')
+@login_required
 def descargar_adjunto(request, pk):
     """Download an attachment file from a HistorialClinico record.
 

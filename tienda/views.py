@@ -106,7 +106,7 @@ def _clear_db_cart(request):
 # Views
 # ============================================================
 
-@login_required(login_url='/usuarios/login/')
+@login_required
 def catalogo(request):
     """Tienda — product catalog for Cliente to browse and add to cart.
 
@@ -147,7 +147,7 @@ def catalogo(request):
     })
 
 
-@login_required(login_url='/usuarios/login/')
+@login_required
 def detalle_producto(request, pk):
     """Tienda — product detail page for a single product.
 
@@ -309,7 +309,7 @@ def vaciar_carrito(request):
     return redirect('tienda:carrito')
 
 
-@login_required(login_url='/usuarios/login/')
+@login_required
 def checkout(request):
     """Checkout: create a Pedido from the cart contents.
 
@@ -371,6 +371,20 @@ def checkout(request):
 
         # Round-robin: assign to available domiciliario with least active orders
         domiciliario = asignar_domiciliario_disponible()
+
+        # Validate stock for all cart items before creating order
+        for pk_val, item_data in cart.items():
+            producto = Producto.objects.filter(pk=int(pk_val)).first()
+            if not producto:
+                messages.error(request, 'Uno de los productos en tu carrito ya no está disponible.')
+                return redirect('tienda:carrito')
+            if producto.cantidad_stock < item_data['quantity']:
+                messages.error(
+                    request,
+                    f'Stock insuficiente para "{producto.nombre}": '
+                    f'solo quedan {producto.cantidad_stock} unidades.'
+                )
+                return redirect('tienda:carrito')
 
         # Create Pedido
         pedido = Pedido.objects.create(

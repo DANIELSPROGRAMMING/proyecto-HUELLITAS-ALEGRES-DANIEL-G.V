@@ -10,7 +10,7 @@ from .models import Servicio, CATEGORIAS_SERVICIO
 from .forms import ServicioForm
 
 
-@login_required(login_url='/usuarios/login/')
+@login_required
 def catalogo_servicios(request):
     """Catálogo de servicios para Cliente — vista de tarjetas con opción de agendar.
 
@@ -45,7 +45,7 @@ def catalogo_servicios(request):
     })
 
 
-@login_required(login_url='/usuarios/login/')
+@login_required
 def lista_servicios(request):
     """Lista de servicios activos — cualquier usuario autenticado puede ver."""
     qs = Servicio.objects.order_by('nombre')

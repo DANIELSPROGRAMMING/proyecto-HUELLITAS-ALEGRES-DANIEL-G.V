@@ -147,7 +147,7 @@ def alertas_stock(request):
     })
 
 
-@login_required(login_url='/usuarios/login/')
+@login_required
 def inicio(request):
     """Vista para la página de inicio de productos."""
     context = {
