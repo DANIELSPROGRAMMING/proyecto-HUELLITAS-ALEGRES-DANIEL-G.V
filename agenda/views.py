@@ -38,6 +38,7 @@ def dashboard_vet(request):
     return render(request, 'agenda/dashboard_vet.html', {
         'page_obj_disp': page_obj_disp,
         'page_obj_citas': page_obj_citas,
+        'tratamientos_activos': citas.filter(estado='Atendida').count(),
     })
 
 

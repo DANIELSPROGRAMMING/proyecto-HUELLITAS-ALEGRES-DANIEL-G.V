@@ -107,7 +107,7 @@ def reporte_citas(request):
 @role_required('Administrador', 'Veterinario')
 def reporte_historial(request, mascota_pk):
     mascota = get_object_or_404(Mascota, pk=mascota_pk)
-    historiales = HistorialClinico.objects.filter(mascota=mascota).select_related('veterinario').order_by('-fecha')
+    historiales = HistorialClinico.objects.filter(mascota=mascota).select_related('veterinario').order_by('-fecha_consulta')
     context = {
         'mascota': mascota,
         'historiales': historiales,
