@@ -75,7 +75,7 @@ def _build_nim_context():
             lines.append(f"  - {sv}")
 
     lines.append("")
-    lines.append("IMPORTANTE: solo menciona productos, servicios y datos que aparezcan en esta lista.")
+    lines.append("IMPORTANTE: para consultar productos específicos usa la herramienta list_products_by_category. Para servicios, usa list_services. Solo menciona datos que obtengas de las herramientas o de este contexto.")
     return '\n'.join(lines)
 
 

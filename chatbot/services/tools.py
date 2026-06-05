@@ -65,7 +65,7 @@ TOOLS = [
                     "categoria": {
                         "type": "string",
                         "description": (
-                            "Nombre de la categoría. Valores válidos: Alimentos, "
+                            "Nombre de la categoría. Valores válidos: Vacunas, Alimentos, "
                             "Medicamentos, Higiene y cuidado, Insumos médicos, Otros."
                         ),
                     },
@@ -198,7 +198,7 @@ def _list_products_by_category(args: dict) -> str:
         'vacunas': 'vacunas', 'medicamentos': 'medicamentos',
         'alimentos': 'alimentos', 'insumos médicos': 'insumos',
         'higiene y cuidado': 'higiene', 'higiene': 'higiene',
-        'insumos': 'insumos', 'otros': 'otros',
+        'insumos': 'insumos', 'otros': 'otros', 'vacuna': 'vacunas',
     }
     raw_key = CATEGORY_MAP.get(categoria.lower().strip(), categoria)
 

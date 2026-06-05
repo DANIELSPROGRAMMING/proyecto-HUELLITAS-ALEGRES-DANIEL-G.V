@@ -162,7 +162,7 @@
                         </td>
                         <td class="py-3 px-4 text-right">
                             {% if cita.estado == 'Programada' %}
-                            <a href="{% url 'historial:crear' %}" class="bg-primary text-on-primary font-label-md text-label-md px-3 py-1.5 rounded-lg hover:bg-primary/90 transition-colors shadow-sm opacity-0 group-hover:opacity-100 transition-opacity inline-block no-underline">
+                            <a href="{% url 'historial:atender_cita' cita.pk %}" class="bg-primary text-on-primary font-label-md text-label-md px-3 py-1.5 rounded-lg hover:bg-primary/90 transition-colors shadow-sm opacity-0 group-hover:opacity-100 transition-opacity inline-block no-underline">
                                 Iniciar Consulta
                             </a>
                             {% elif cita.estado == 'Atendida' %}

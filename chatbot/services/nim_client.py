@@ -89,7 +89,8 @@ class NimClient:
         )
 
     def send_image(self, user_message, image_base64, system_prompt,
-                   context=None, vision_model=None, image_timeout=30):
+                   context=None, vision_model=None, image_timeout=30,
+                   image_mime='image/jpeg'):
         """Send text + image to multimodal NIM model.
 
         Uses OpenAI-compatible vision format with image_url in content array.
@@ -99,11 +100,23 @@ class NimClient:
             image_base64: raw base64 string WITHOUT the data:image prefix
             vision_model: model override for vision (default: self.model)
             image_timeout: separate timeout for image inference (default: 30s)
+            image_mime: MIME type for the image (default: image/jpeg).
+                        Auto-detected from frontend when available.
 
         Returns: raw text response string
         """
         url = f"{self.base_url}/v1/chat/completions"
         model = vision_model or self.model
+
+        # Auto-detect image format from base64 header
+        if image_base64.startswith('iVBOR'):
+            image_mime = 'image/png'
+        elif image_base64.startswith('/9j/'):
+            image_mime = 'image/jpeg'
+        elif image_base64.startswith('R0lGOD'):
+            image_mime = 'image/gif'
+        elif image_base64.startswith('UklGR'):
+            image_mime = 'image/webp'
 
         messages = [
             {"role": "system", "content": system_prompt},
@@ -117,7 +130,7 @@ class NimClient:
             content.append({"type": "text", "text": user_message})
         content.append({
             "type": "image_url",
-            "image_url": {"url": f"data:image/jpeg;base64,{image_base64}"},
+            "image_url": {"url": f"data:{image_mime};base64,{image_base64}"},
         })
         messages.append({"role": "user", "content": content})
 

@@ -31,10 +31,13 @@ if _railway_domain:
     ALLOWED_HOSTS.append(f'.{_railway_domain}')
 
 # CSRF: required for HTTPS POST on Railway (Django 4.0+)
+# NOTE: Django does NOT support * wildcards in CSRF_TRUSTED_ORIGINS.
+# Use the exact domain and parent domain (Django 4.1+ .domain syntax).
 CSRF_TRUSTED_ORIGINS = ['http://localhost', 'http://127.0.0.1']
 if _railway_domain:
     CSRF_TRUSTED_ORIGINS.append(f'https://{_railway_domain}')
-    CSRF_TRUSTED_ORIGINS.append(f'https://*.{_railway_domain}')
+    # Django 4.1+ supports .domain for all subdomains:
+    CSRF_TRUSTED_ORIGINS.append(f'https://.{_railway_domain}')
 
 
 # Application definition

@@ -421,6 +421,13 @@ def checkout(request):
             tipo='pedido',
             url=f'/entregas/{pedido.pk}/',
         )
+        # Notificar al cliente que su pedido fue creado
+        notify(
+            request.user,
+            f"✅ ¡Tu pedido #{pedido.pk} ha sido registrado! Te notificaremos cuando esté en camino.",
+            tipo='pedido',
+            url=f'/entregas/{pedido.pk}/',
+        )
 
         # Clear both session and DB cart
         request.session['cart'] = {}

@@ -119,7 +119,7 @@ def reporte_historial(request, mascota_pk):
 @login_required
 @role_required('Administrador')
 def reporte_inventario(request):
-    productos = Producto.objects.all().order_by('categoria', 'nombre')
+    productos = Producto.objects.select_related('proveedor').all().order_by('categoria', 'nombre')
     stock_bajo = request.GET.get('stock_bajo')
     if stock_bajo:
         productos = productos.filter(cantidad_stock__lt=5)
