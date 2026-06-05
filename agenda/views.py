@@ -252,6 +252,20 @@ def solicitar_cita(request):
     else:
         servicio_id = None
 
+    # Mascota pre-selection from query param ?mascota_id=X
+    mascota_id = request.GET.get('mascota_id')
+    mascota_seleccionada = None
+    if mascota_id and mascota_id.isdigit():
+        try:
+            from mascotas.models import Mascota
+            mascota_seleccionada = Mascota.objects.filter(
+                pk=int(mascota_id), propietario=request.user
+            ).first()
+        except (ValueError, TypeError):
+            pass
+    if not mascota_seleccionada:
+        mascota_id = None
+
     if request.method == 'POST':
         form = SolicitarCitaForm(request.POST, user=request.user)
         if form.is_valid():
@@ -286,6 +300,9 @@ def solicitar_cita(request):
         if servicio_seleccionado:
             initial['servicio'] = servicio_seleccionado
             initial['motivo'] = servicio_nombre
+        # Pre-select mascota from query param
+        if mascota_seleccionada:
+            initial['mascota'] = mascota_seleccionada
         form = SolicitarCitaForm(user=request.user, initial=initial)
 
     return render(request, 'agenda/solicitar_cita.html', {

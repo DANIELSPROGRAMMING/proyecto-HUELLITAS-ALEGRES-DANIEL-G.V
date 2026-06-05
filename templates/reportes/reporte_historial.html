@@ -4,7 +4,7 @@
     <h4>Historial Clínico — {{ mascota.nombre }}</h4>
     <table>
         <tr><td><strong>Especie:</strong></td><td>{{ mascota.get_especie_display }}</td><td><strong>Raza:</strong></td><td>{{ mascota.raza|default:"N/A" }}</td></tr>
-        <tr><td><strong>Propietario:</strong></td><td>{{ mascota.propietario.get_full_name }}</td><td><strong>Edad:</strong></td><td>{{ mascota.edad|default:"N/A" }}</td></tr>
+        <tr><td><strong>Propietario:</strong></td><td>{{ mascota.propietario.get_full_name }}</td><td><strong>Edad:</strong></td><td>{{ mascota.get_edad|default:"N/A" }}</td></tr>
     </table>
 </div>
 <table>
@@ -19,7 +19,7 @@
     <tbody>
         {% for h in historiales %}
         <tr>
-            <td>{{ h.fecha }}</td>
+            <td>{{ h.fecha_consulta|date:"d/m/Y H:i" }}</td>
             <td>{{ h.veterinario.get_full_name }}</td>
             <td>{{ h.diagnostico }}</td>
             <td>{{ h.tratamiento|default:"-" }}</td>

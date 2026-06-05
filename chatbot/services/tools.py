@@ -193,11 +193,20 @@ def _list_products_by_category(args: dict) -> str:
     if not categoria:
         return "Error: debes especificar una categoría."
 
+    # Map display names (from NIM) to raw DB keys
+    CATEGORY_MAP = {
+        'vacunas': 'vacunas', 'medicamentos': 'medicamentos',
+        'alimentos': 'alimentos', 'insumos médicos': 'insumos',
+        'higiene y cuidado': 'higiene', 'higiene': 'higiene',
+        'insumos': 'insumos', 'otros': 'otros',
+    }
+    raw_key = CATEGORY_MAP.get(categoria.lower().strip(), categoria)
+
     products = list(
         Producto.objects.filter(
             esta_activo=True,
             cantidad_stock__gt=0,
-            categoria__icontains=categoria,
+            categoria__icontains=raw_key,
         ).values("nombre", "precio", "cantidad_stock")[:10]
     )
 

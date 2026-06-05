@@ -13,7 +13,7 @@
     {# Order card grid #}
     <div class="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-4">
         {% for pedido in page_obj %}
-        <div class="bg-surface-container-lowest rounded-xl border border-outline-variant/10 shadow-[0_4px_20px_rgba(0,0,0,0.03)] overflow-hidden
+        <a href="{% url 'entregas:detalle' pedido.pk %}" class="block bg-surface-container-lowest rounded-xl border border-outline-variant/10 shadow-[0_4px_20px_rgba(0,0,0,0.03)] overflow-hidden hover:shadow-md transition-shadow
             {% if pedido.estado == 'pendiente' %}border-l-4 border-l-[#5e6d33]{% elif pedido.estado == 'en_camino' %}border-l-4 border-l-primary{% elif pedido.estado == 'entregado' %}border-l-4 border-l-primary{% else %}border-l-4 border-l-error{% endif %}">
             <div class="p-4">
                 <div class="flex justify-between items-center mb-3">
@@ -46,7 +46,7 @@
                     </p>
                 </div>
             </div>
-        </div>
+        </a>
         {% endfor %}
     </div>
 
