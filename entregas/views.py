@@ -23,10 +23,13 @@ from notificaciones.helpers import notify, notify_role
 def asignar_domiciliario_disponible():
     """Asigna el domiciliario disponible con MENOS pedidos activos (pendiente + en_camino).
     Round-robin justo: el que menos carga tiene recibe el pedido nuevo.
-    Usa select_for_update() en transacción atómica para evitar race conditions.
+    Usa transaction.atomic() + select_for_update() sobre la fila específica
+    para evitar race conditions. Compatible con SQLite y PostgreSQL.
     Retorna None si no hay domiciliarios disponibles."""
     with transaction.atomic():
-        domiciliarios = Usuario.objects.select_for_update().filter(
+        # Paso 1: encontrar el mejor candidato (sin lock — PostgreSQL no permite
+        # FOR UPDATE con GROUP BY/aggregate)
+        candidato = Usuario.objects.filter(
             rol__nombre='Domiciliario',
             is_active=True,
             is_disponible=True,
@@ -35,8 +38,16 @@ def asignar_domiciliario_disponible():
                 'pedidos_como_domiciliario',
                 filter=Q(pedidos_como_domiciliario__estado__in=['pendiente', 'en_camino']),
             )
-        ).order_by('pedidos_activos', 'id')
-        return domiciliarios.first()
+        ).order_by('pedidos_activos', 'id').first()
+
+        if candidato is None:
+            return None
+
+        # Paso 2: bloquear solo esa fila y re-verificar disponibilidad
+        dom = Usuario.objects.select_for_update().get(pk=candidato.pk)
+        if dom.is_disponible and dom.is_active:
+            return dom
+        return None
 
 
 @login_required(login_url='/usuarios/login/')
