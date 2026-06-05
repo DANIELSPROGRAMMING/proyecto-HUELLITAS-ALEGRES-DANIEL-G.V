@@ -156,7 +156,7 @@
                         </td>
                         <td class="py-3 px-4">{{ pedido.cliente.get_full_name|default:pedido.cliente.email }}</td>
                         <td class="py-3 px-4">
-                            {% if pedido.estado in 'pendiente,en_camino' %}
+                            {% if pedido.estado == 'pendiente' or pedido.estado == 'en_camino' %}
                             <form method="post" action="{% url 'entregas:torre_control' %}" class="inline-flex items-center gap-1">
                                 {% csrf_token %}
                                 <input type="hidden" name="pedido_pk" value="{{ pedido.pk }}">

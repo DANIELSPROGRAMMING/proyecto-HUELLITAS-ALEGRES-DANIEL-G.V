@@ -39,6 +39,11 @@ if _railway_domain:
     # Django 4.1+ supports .domain for all subdomains:
     CSRF_TRUSTED_ORIGINS.append(f'https://.{_railway_domain}')
 
+# Security settings for production (Railway handles SSL termination)
+SECURE_PROXY_SSL_HEADER = ('HTTP_X_FORWARDED_PROTO', 'https')
+SESSION_COOKIE_SECURE = True
+CSRF_COOKIE_SECURE = True
+
 
 # Application definition
 
