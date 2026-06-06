@@ -23,6 +23,8 @@ from notificaciones.helpers import notify, notify_role
 def asignar_domiciliario_disponible():
     """Asigna el domiciliario disponible con MENOS pedidos activos (pendiente + en_camino).
     Round-robin justo: el que menos carga tiene recibe el pedido nuevo.
+    Como tiebreaker, usa el total de pedidos históricos (incluyendo entregados)
+    para distribuir equitativamente cuando hay empate de carga activa.
     Usa transaction.atomic() + select_for_update() sobre la fila específica
     para evitar race conditions. Compatible con SQLite y PostgreSQL.
     Retorna None si no hay domiciliarios disponibles."""
@@ -37,8 +39,9 @@ def asignar_domiciliario_disponible():
             pedidos_activos=Count(
                 'pedidos_como_domiciliario',
                 filter=Q(pedidos_como_domiciliario__estado__in=['pendiente', 'en_camino']),
-            )
-        ).order_by('pedidos_activos', 'id').first()
+            ),
+            pedidos_totales=Count('pedidos_como_domiciliario'),
+        ).order_by('pedidos_activos', 'pedidos_totales').first()
 
         if candidato is None:
             return None
