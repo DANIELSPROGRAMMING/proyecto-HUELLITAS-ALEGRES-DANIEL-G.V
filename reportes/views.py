@@ -124,7 +124,9 @@ def reporte_inventario(request):
     if stock_bajo:
         productos = productos.filter(cantidad_stock__lt=5)
     total_productos = productos.count()
-    total_valor = sum(p.precio * p.cantidad_stock for p in productos)
+    total_valor = productos.aggregate(
+        total=Sum(F('precio') * F('cantidad_stock'))
+    )['total'] or 0
     critico = sum(1 for p in productos if p.estado_stock == 'rojo')
     bajo = sum(1 for p in productos if p.estado_stock == 'amarillo')
     context = {

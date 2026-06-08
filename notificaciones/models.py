@@ -67,6 +67,11 @@ class Notificacion(models.Model):
         if self.url and not self.url.startswith('/'):
             raise ValidationError({'url': 'La URL debe ser una ruta interna que empiece con /'})
 
+    def save(self, *args, **kwargs):
+        """Ensure clean() validation runs on every save."""
+        self.full_clean()
+        super().save(*args, **kwargs)
+
     def __str__(self):
         estado = '✓' if self.leido else '●'
         return f'{estado} [{self.get_tipo_display()}] {self.mensaje[:50]}'

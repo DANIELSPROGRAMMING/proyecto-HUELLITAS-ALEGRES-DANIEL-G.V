@@ -92,15 +92,17 @@ class Pedido(models.Model):
     # Evidencia (paso 11)
     foto_evidencia = models.ImageField(
         upload_to=evidencia_upload_path,
-        blank=False,
+        blank=True,
+        null=True,
         verbose_name='Foto de evidencia',
-        help_text='Foto del paquete entregado. Obligatorio. Máximo 5MB.',
+        help_text='Foto del paquete entregado. Obligatorio al marcar como Entregado. Máximo 5MB.',
     )
     firma_imagen = models.ImageField(
         upload_to=firma_upload_path,
-        blank=False,
+        blank=True,
+        null=True,
         verbose_name='Firma del cliente',
-        help_text='Imagen de la firma del cliente. Obligatorio. Máximo 5MB.',
+        help_text='Imagen de la firma del cliente. Obligatorio al marcar como Entregado. Máximo 5MB.',
     )
     # Marcas de tiempo
     fecha_creacion = models.DateTimeField(

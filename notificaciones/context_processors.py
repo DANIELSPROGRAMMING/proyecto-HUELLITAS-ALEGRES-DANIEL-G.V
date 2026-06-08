@@ -14,9 +14,10 @@ def notificaciones_context(request):
             'notificaciones_count': 0,
         }
 
-    qs = request.user.notificaciones.filter(leido=False)[:10]
-    total = request.user.notificaciones.filter(leido=False).count()
+    qs = request.user.notificaciones.filter(leido=False)
+    total = qs.count()
+    notificaciones = qs[:10]
     return {
-        'notificaciones_no_leidas': qs,
+        'notificaciones_no_leidas': notificaciones,
         'notificaciones_count': total,
     }

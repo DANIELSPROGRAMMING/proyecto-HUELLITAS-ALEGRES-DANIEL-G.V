@@ -1,6 +1,7 @@
 from django.shortcuts import render, redirect, get_object_or_404
 from django.contrib.auth.decorators import login_required
 from django.contrib import messages
+from django.core.exceptions import PermissionDenied
 from django.db.models import Q, ProtectedError
 from django.core.paginator import Paginator, EmptyPage, PageNotAnInteger
 from usuarios.decorators import role_required
@@ -93,7 +94,6 @@ def editar_mascota(request, pk):
     mascota = get_object_or_404(Mascota, pk=pk)
     # Ownership check for Cliente role
     if request.user.rol.nombre == 'Cliente' and mascota.propietario != request.user:
-        from django.core.exceptions import PermissionDenied
         raise PermissionDenied
     if request.method == 'POST':
         form = MascotaForm(request.POST, request.FILES, instance=mascota)
@@ -131,7 +131,6 @@ def detalle_mascota(request, pk):
         raise PermissionDenied
     mascota = get_object_or_404(Mascota, pk=pk)
     if request.user.rol.nombre == 'Cliente' and mascota.propietario != request.user:
-        from django.core.exceptions import PermissionDenied
         raise PermissionDenied
     # Get last attended cita
     ultima_cita = mascota.citas.filter(estado='Atendida').order_by('-disponibilidad__fecha', '-disponibilidad__hora_inicio').first()

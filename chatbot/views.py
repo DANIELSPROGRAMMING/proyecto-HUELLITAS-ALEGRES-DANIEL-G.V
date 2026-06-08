@@ -354,12 +354,15 @@ _CHAT_WINDOW_SECONDS = 60
 
 
 # CSRF exemption is intentional for this endpoint:
-# - Read-only: no state mutations, no writes, no auth changes
-# - Public: accessible from landing page for anonymous visitors
+# - No authentication: accessible from landing page for anonymous visitors
+# - Read-only: DB queries are SELECT-only for unauthenticated users
 # - Rate-limited: 30 req / 60s per session (prevents abuse)
-# - No sensitive operations: DB queries are SELECT-only
-# The frontend sends X-CSRFToken via JS (see chatbot_widget.html)
-# as a defense-in-depth measure even though the server doesn't validate it.
+# - No sensitive operations: no writes, no auth mutations
+# - JSON-only: accepts only application/json POST bodies (not form-encoded)
+# The frontend sends X-CSRFToken via JS (see chatbot_widget.html) as
+# defense-in-depth; the server currently doesn't validate it because
+# CSRF middleware only protects form-encoded POST, not JSON bodies.
+# If this endpoint ever accepts form data, remove @csrf_exempt immediately.
 @csrf_exempt
 @require_POST
 def procesar_chat(request):
@@ -377,9 +380,11 @@ def procesar_chat(request):
         { "response": "💊 Productos encontrados:...", "quick_replies": [...] }
     """
     # ── Rate limit (session-based) ──
-    # NOTE: This is not atomic — concurrent requests can race the
+    # WARNING: This is NOT atomic — concurrent requests can race the
     # read-check-append cycle. Adequate for normal use; for production
-    # with high concurrency, use Redis-backed counters or middleware.
+    # with high concurrency, use Redis-backed counters or middleware
+    # with atomic increment operations (INCR + TTL in a single step).
+    # Current implementation tolerates ~1-2 extra requests per window.
     chat_history = request.session.get('_chat_timestamps', [])
     now = time.time()
     chat_history = [ts for ts in chat_history if now - ts < _CHAT_WINDOW_SECONDS]

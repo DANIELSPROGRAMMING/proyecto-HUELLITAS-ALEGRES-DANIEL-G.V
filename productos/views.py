@@ -141,7 +141,11 @@ def kardex_producto(request, pk):
 @role_required('Veterinario', 'Administrador')
 def alertas_stock(request):
     """Mostrar productos con alertas de stock (estado_stock != 'verde'). Solo Vet/Admin."""
-    alert_products = [p for p in Producto.objects.all() if p.estado_stock != 'verde']
+    # Filter at DB level: active only, with select_related. estado_stock property
+    # (rojo/amarillo/verde) is computed in Python since it uses stock_minimo * 1.5.
+    alert_products = [p for p in Producto.objects.filter(
+        esta_activo=True
+    ).select_related('proveedor') if p.estado_stock != 'verde']
     return render(request, 'productos/alertas.html', {
         'alert_products': alert_products,
     })

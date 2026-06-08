@@ -43,5 +43,10 @@ def notify_role(rol_nombre, mensaje, tipo='sistema', url=''):
     """
     from usuarios.models import Usuario
 
+    from .models import Notificacion
+
     usuarios = Usuario.objects.filter(rol__nombre=rol_nombre, is_active=True)
-    return [notify(u, mensaje, tipo, url) for u in usuarios]
+    instances = [Notificacion(usuario=u, tipo=tipo, mensaje=mensaje, url=url) for u in usuarios]
+    if instances:
+        Notificacion.objects.bulk_create(instances)
+    return instances
