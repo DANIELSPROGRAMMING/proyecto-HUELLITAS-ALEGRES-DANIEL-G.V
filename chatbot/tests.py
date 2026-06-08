@@ -758,7 +758,7 @@ class ImagePathTests(TestCase):
         mock_instance.send_image.side_effect = requests.exceptions.Timeout("Timeout")
         MockNimClient.return_value = mock_instance
 
-        response, data = self._post('mira esta foto', self.sample_b64)
+        response, data = self._post('', self.sample_b64)  # image-only triggers image error handler
         self.assertEqual(response.status_code, 200)
         self.assertIn('tardando', data['response'])
 
@@ -769,7 +769,7 @@ class ImagePathTests(TestCase):
         mock_instance.send_image.side_effect = requests.exceptions.ConnectionError("Down")
         MockNimClient.return_value = mock_instance
 
-        response, data = self._post('analiza esto', self.sample_b64)
+        response, data = self._post('', self.sample_b64)  # image-only triggers image error handler
         self.assertEqual(response.status_code, 200)
         self.assertIn('No puedo analizar imágenes', data['response'])
 

@@ -16,10 +16,13 @@ STATICFILES_DIRS = [
 ]
 
 STATIC_ROOT = BASE_DIR / 'staticfiles'
-# SECURITY: secret key from env, hardcoded fallback for local dev only
+# SECURITY: DJANGO_SECRET_KEY se obtiene de variable de entorno.
+# El fallback hardcodeado SOLO se usa en desarrollo local (DEBUG=True).
+# En producción (Railway), DJANGO_SECRET_KEY DEBE estar configurada en las variables.
 SECRET_KEY = os.getenv('DJANGO_SECRET_KEY', 'django-insecure-#6866yvo@54pp!c*3#p9gup1lud_##bx$*%*#eg#zto%+$w1d6')
 
-# SECURITY: debug off in production, on by default for local dev
+# SECURITY: DEBUG=False en producción, True por defecto para desarrollo local.
+# Railway inyecta DJANGO_DEBUG=False → las security settings de abajo se activan.
 DEBUG = os.getenv('DJANGO_DEBUG', 'True') == 'True'
 
 ALLOWED_HOSTS = ['localhost', '127.0.0.1']
@@ -33,7 +36,7 @@ if _railway_domain:
 # CSRF: required for HTTPS POST on Railway (Django 4.0+)
 # NOTE: Django does NOT support * wildcards in CSRF_TRUSTED_ORIGINS.
 # Use the exact domain and parent domain (Django 4.1+ .domain syntax).
-CSRF_TRUSTED_ORIGINS = ['http://localhost', 'http://127.0.0.1']
+CSRF_TRUSTED_ORIGINS = ['http://localhost', 'http://127.0.0.1', 'https://localhost', 'https://127.0.0.1']
 if _railway_domain:
     CSRF_TRUSTED_ORIGINS.append(f'https://{_railway_domain}')
     # Django 4.1+ supports .domain for all subdomains:

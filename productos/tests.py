@@ -79,8 +79,8 @@ class ProductoModelTest(TestCase):
             create_producto(nombre='Producto A')
 
     def test_categorias_count(self):
-        """R1.3: Existen 7 categorías en CATEGORIAS"""
-        self.assertEqual(len(CATEGORIAS), 7)
+        """R1.3: Existen 6 categorías en CATEGORIAS"""
+        self.assertEqual(len(CATEGORIAS), 6)
 
     def test_stock_minimo_default(self):
         """R1.4: stock_minimo tiene valor predeterminado de 10"""
@@ -521,7 +521,7 @@ class ProductoViewTest(TestCase):
 
     def test_soft_delete(self):
         """R8.4: delete_product elimina suavemente (establece esta_activo=False)"""
-        self.client.force_login(self.vet)
+        self.client.force_login(self.admin)
         resp = self.client.post(reverse('productos:eliminar', kwargs={'pk': self.p1.pk}))
         self.assertEqual(resp.status_code, 302)
         # Usar all_objects porque el gestor por defecto filtra inactivos

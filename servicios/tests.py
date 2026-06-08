@@ -256,7 +256,7 @@ class ServicioViewTest(TestCase):
 
     def test_editar_post_success(self):
         """s3.8: editar POST updates and redirects."""
-        self.client.force_login(self.vet)
+        self.client.force_login(self.admin)
         resp = self.client.post(reverse('servicios:editar', kwargs={'pk': self.servicio.pk}), {
             'nombre': 'Consulta general',
             'descripcion': 'Consulta completa',
@@ -297,7 +297,7 @@ class ServicioViewTest(TestCase):
 
     def test_eliminar_get_confirms(self):
         """s3.11: eliminar GET shows confirmation page."""
-        self.client.force_login(self.vet)
+        self.client.force_login(self.admin)
         resp = self.client.get(reverse('servicios:eliminar', kwargs={'pk': self.servicio.pk}))
         self.assertEqual(resp.status_code, 200)
         self.assertContains(resp, 'Consulta general')

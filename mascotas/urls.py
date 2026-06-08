@@ -1,6 +1,8 @@
 from django.urls import path
 from .views import lista_mascotas, crear_mascota, editar_mascota, eliminar_mascota, detalle_mascota, cliente_dashboard
 
+app_name = 'mascotas'
+
 urlpatterns = [
     path('', lista_mascotas, name='lista'),
     path('dashboard/', cliente_dashboard, name='dashboard'),

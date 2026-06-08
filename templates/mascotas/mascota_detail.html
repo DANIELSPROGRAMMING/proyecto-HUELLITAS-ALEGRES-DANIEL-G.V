@@ -103,7 +103,7 @@
 
 <!-- Actions -->
 <div class="flex flex-wrap gap-3">
-  <a href="{% url 'historial:por_mascota' mascota.pk %}" class="inline-flex items-center gap-2 bg-tertiary-container/30 text-tertiary font-label-md text-label-md rounded-lg px-4 py-2.5 hover:opacity-90 transition-opacity">
+  <a href="{% url 'historial:por_mascota' mascota_pk=mascota.pk %}" class="inline-flex items-center gap-2 bg-tertiary-container/30 text-tertiary font-label-md text-label-md rounded-lg px-4 py-2.5 hover:opacity-90 transition-opacity">
     <span class="material-symbols-outlined text-[18px]">description</span> Historial Clínico
   </a>
   {% if user.rol.nombre == 'Cliente' %}

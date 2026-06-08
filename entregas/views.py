@@ -4,7 +4,6 @@ from django.core.exceptions import PermissionDenied
 from django.http import Http404, HttpResponse
 from django.contrib import messages
 from django.core.paginator import Paginator, EmptyPage, PageNotAnInteger
-from django.http import HttpResponse
 from django.template.loader import render_to_string
 from django.utils import timezone
 from django.db import transaction
