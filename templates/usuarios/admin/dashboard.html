@@ -31,14 +31,13 @@
 {# ─────────────────── STATS ROW ─────────────────── #}
 <div class="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-4 gap-4 mb-6">
     {# Stat 1: Ingresos del Mes #}
-    <div class="bg-surface-container-lowest rounded-xl p-md shadow-[0_4px_20px_rgba(0,0,0,0.03)] border border-outline-variant/10 flex flex-col gap-3 relative overflow-hidden">
+    <div class="bg-surface-container-lowest rounded-xl p-md shadow-[0_4px_20px_rgba(0,0,0,0.03)] border border-outline-variant/10 flex flex-col gap-3 relative overflow-hidden text-center">
         <div class="absolute -right-4 -top-4 w-16 h-16 bg-primary-container/10 rounded-full blur-xl"></div>
-        <div class="flex items-center gap-2 text-on-surface-variant font-label-md text-label-md uppercase tracking-wider">
+        <div class="flex items-center justify-center gap-2 text-on-surface-variant font-label-md text-label-md uppercase tracking-wider">
             <span class="material-symbols-outlined text-primary">trending_up</span>
             Ingresos del Mes
         </div>
-        <div class="font-display-md text-display-md text-on-surface truncate">{{ ingresos_mes|pesos }}</div>
-        <div class="font-caption text-caption text-on-surface-variant">Total facturado este mes</div>
+        <div class="font-display-lg text-display-lg text-on-surface font-bold">{{ ingresos_mes|pesos }}</div>
     </div>
 
     {# Stat 2: Citas Hoy #}
