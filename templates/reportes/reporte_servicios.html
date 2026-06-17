@@ -1,4 +1,5 @@
 {% extends "reportes/base_reporte.html" %}
+{% load formato %}
 {% block content %}
 <div class="summary-box">
     <h4>Resumen de Servicios</h4>
@@ -21,7 +22,7 @@
         <tr>
             <td>{{ s.nombre }}</td>
             <td>{{ s.get_categoria_display }}</td>
-            <td>{{ s.tarifa|floatformat:0 }}</td>
+            <td>{{ s.tarifa|pesos }}</td>
             <td>{{ s.duracion_minutos }} min</td>
             <td>
                 {% if s.esta_activo %}

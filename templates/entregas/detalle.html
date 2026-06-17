@@ -1,5 +1,6 @@
 {% extends 'base.html' %}
 {% load static %}
+{% load formato %}
 
 {% block title %}Pedido #{{ pedido.pk }} — Huellitas Alegres{% endblock %}
 
@@ -170,7 +171,7 @@
                         <span class="material-symbols-outlined text-on-surface-variant text-[20px]">payments</span>
                         <div>
                             <p class="font-caption text-caption text-on-surface-variant">Total</p>
-                            <p class="font-headline-md text-headline-md text-on-surface">${{ pedido.total|floatformat:0 }}</p>
+                            <p class="font-headline-md text-headline-md text-on-surface">{{ pedido.total|pesos }}</p>
                         </div>
                     </div>
                     {% endif %}
@@ -197,15 +198,15 @@
                         <tr class="hover:bg-surface transition-colors">
                             <td class="py-2.5 px-4">{{ item.producto.nombre }}</td>
                             <td class="py-2.5 px-4">{{ item.cantidad }}</td>
-                            <td class="py-2.5 px-4">${{ item.producto.precio|floatformat:0 }}</td>
-                            <td class="py-2.5 px-4 text-right font-medium">${{ item.subtotal|floatformat:0 }}</td>
+                            <td class="py-2.5 px-4">{{ item.producto.precio|pesos }}</td>
+                            <td class="py-2.5 px-4 text-right font-medium">{{ item.subtotal|pesos }}</td>
                         </tr>
                         {% endfor %}
                     </tbody>
                     <tfoot>
                         <tr class="bg-surface-container-high font-label-md text-label-md text-on-surface">
                             <td colspan="3" class="py-3 px-4 text-right font-semibold">Total:</td>
-                            <td class="py-3 px-4 text-right font-semibold">${{ pedido.total|floatformat:0 }}</td>
+                            <td class="py-3 px-4 text-right font-semibold">{{ pedido.total|pesos }}</td>
                         </tr>
                     </tfoot>
                 </table>

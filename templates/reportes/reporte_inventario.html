@@ -1,9 +1,10 @@
 {% extends "reportes/base_reporte.html" %}
+{% load formato %}
 {% block content %}
 <div class="summary-box">
     <h4>Resumen de Inventario</h4>
     <table>
-        <tr><td><strong>Total productos:</strong></td><td>{{ total_productos }}</td><td><strong>Valor total:</strong></td><td>{{ total_valor|floatformat:0 }}</td></tr>
+        <tr><td><strong>Total productos:</strong></td><td>{{ total_productos }}</td><td><strong>Valor total:</strong></td><td>{{ total_valor|pesos }}</td></tr>
         <tr><td><strong>Stock crítico:</strong></td><td>{{ critico }}</td><td><strong>Stock bajo:</strong></td><td>{{ bajo }}</td></tr>
     </table>
 </div>
@@ -24,7 +25,7 @@
         <tr>
             <td>{{ p.nombre }}</td>
             <td>{{ p.get_categoria_display }}</td>
-            <td>{{ p.precio|floatformat:0 }}</td>
+            <td>{{ p.precio|pesos }}</td>
             <td>{{ p.cantidad_stock }}</td>
             <td>{{ p.stock_minimo }}</td>
             <td>

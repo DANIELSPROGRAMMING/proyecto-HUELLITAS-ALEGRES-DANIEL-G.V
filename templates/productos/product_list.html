@@ -1,4 +1,5 @@
 {% extends 'base.html' %}
+{% load formato %}
 {% block content %}
 <div class="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8 py-6">
   <!-- Page Header -->
@@ -69,7 +70,7 @@
                 {% if not p.esta_activo %}<span class="ml-2 inline-flex items-center px-2 py-0.5 rounded-full bg-surface-container-high text-on-surface-variant font-caption text-caption">Inactivo</span>{% endif %}
               </td>
               <td class="px-4 py-3 font-body-md text-body-md text-on-surface-variant">{{ p.get_categoria_display }}</td>
-              <td class="px-4 py-3 font-body-md text-body-md text-on-surface">${{ p.precio }}</td>
+              <td class="px-4 py-3 font-body-md text-body-md text-on-surface">{{ p.precio|pesos }}</td>
               <td class="px-4 py-3 font-body-md text-body-md text-on-surface text-center">{{ p.cantidad_stock }}</td>
               <td class="px-4 py-3 text-center">
                 {% if p.estado_stock == 'verde' %}

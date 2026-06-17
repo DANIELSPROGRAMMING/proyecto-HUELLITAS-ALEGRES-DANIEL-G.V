@@ -1,5 +1,5 @@
 {% extends 'base.html' %}
-{% load humanize %}
+{% load formato %}
 
 {% block title %}Panel de Administración — Huellitas Alegres{% endblock title %}
 
@@ -37,7 +37,7 @@
             <span class="material-symbols-outlined text-primary">trending_up</span>
             Ingresos del Mes
         </div>
-        <div class="font-display-lg text-display-lg text-on-surface">${{ ingresos_mes|intcomma }}</div>
+        <div class="font-display-md text-display-md text-on-surface truncate">{{ ingresos_mes|pesos }}</div>
         <div class="font-caption text-caption text-on-surface-variant">Total facturado este mes</div>
     </div>
 

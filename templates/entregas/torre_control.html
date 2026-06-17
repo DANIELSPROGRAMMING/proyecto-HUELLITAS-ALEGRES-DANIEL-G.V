@@ -1,4 +1,5 @@
 {% extends 'base.html' %}
+{% load formato %}
 
 {% block title %}Torre de Control — Huellitas Alegres{% endblock %}
 
@@ -196,7 +197,7 @@
                             <span class="inline-flex items-center px-2.5 py-1 rounded-full bg-surface-container-high text-on-surface-variant font-caption text-caption">{{ pedido.get_estado_display }}</span>
                             {% endif %}
                         </td>
-                        <td class="py-3 px-4 font-medium">${{ pedido.total|floatformat:0 }}</td>
+                        <td class="py-3 px-4 font-medium">{{ pedido.total|pesos }}</td>
                         <td class="py-3 px-4 text-on-surface-variant font-caption text-caption">{{ pedido.fecha_creacion|date:"d/m/Y H:i" }}</td>
                         <td class="py-3 px-4 text-right">
                             <div class="inline-flex items-center gap-1">
