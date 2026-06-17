@@ -15,6 +15,7 @@ from productos.views import inicio as dashboard_home
 
 urlpatterns = [
     path('gestion/', admin.site.urls),
+    path('admin/', admin.site.urls),
     # Landing Page (pública) → anónimos ven la landing, autenticados van al dashboard
     path('', landing_page, name='landing'),
     # Dashboard autenticado (renderiza inicio.html con sidebar por rol)
